@@ -8,8 +8,9 @@ const SITE_URL = 'https://vitoleonardo.github.io'
 const NON_COPY_KEYS = new Set(['href', 'id', 'figure', 'lang', 'email', 'number'])
 const KEEP_AS_IS = new Set(['EN', 'DE', 'Vito', 'Krawutschke', 'Vito Krawutschke', 'viktor.krawutschke@gmail.com'])
 const KNOWN_UNTRANSLATED = new Set(['Dr. Fakhari'])
-const EN_SWITCH = '<a class="is-current" href="/" hreflang="en" lang="en" aria-current="true">EN</a><a href="/de/" hreflang="de" lang="de">DE</a>'
-const DE_SWITCH = '<a href="/" hreflang="en" lang="en">EN</a><a class="is-current" href="/de/" hreflang="de" lang="de" aria-current="true">DE</a>'
+const EN_CURRENT_SWITCH =
+  /<a class="is-current" href="\/" hreflang="en" lang="en" aria-current="true"((?: tabindex="-1")?)>EN<\/a><a href="\/de\/" hreflang="de" lang="de"((?: tabindex="-1")?)>DE<\/a>/g
+const EN_MARKED_CURRENT = /<a [^>]*hreflang="en"[^>]*aria-current|<a class="is-current"[^>]*hreflang="en"/
 
 function escapeHtml(text) {
   return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
@@ -67,7 +68,15 @@ function translateBody(body, dictionary) {
     '<a class="skip-link" href="#main">Skip to content</a>',
     `<a class="skip-link" href="#main">${escapeHtml(de.ui.skipLink)}</a>`,
   )
-  translated = translated.split(EN_SWITCH).join(DE_SWITCH)
+  translated = translated.replace(
+    EN_CURRENT_SWITCH,
+    (_, enTabIndex, deTabIndex) =>
+      `<a href="/" hreflang="en" lang="en"${enTabIndex}>EN</a><a class="is-current" href="/de/" hreflang="de" lang="de" aria-current="true"${deTabIndex}>DE</a>`,
+  )
+  if (EN_MARKED_CURRENT.test(translated)) {
+    console.error('gen-de: a language switch still marks English as current')
+    process.exit(1)
+  }
   return { html: translated, missing }
 }
 
