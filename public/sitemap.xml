@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">
+  <url>
+    <loc>https://vitoleonardo.github.io/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://vitoleonardo.github.io/"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://vitoleonardo.github.io/de/"/>
+  </url>
+  <url>
+    <loc>https://vitoleonardo.github.io/de/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://vitoleonardo.github.io/"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://vitoleonardo.github.io/de/"/>
+  </url>
+  <url>
+    <loc>https://vitoleonardo.github.io/impressum/</loc>
+  </url>
+  <url>
+    <loc>https://vitoleonardo.github.io/datenschutz/</loc>
+  </url>
+</urlset>

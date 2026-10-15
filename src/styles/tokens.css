@@ -1,0 +1,55 @@
+:root {
+  --paper: #ecebe6;
+  --ink: #111111;
+  --blue: #1f4bff;
+  --blue-deep: #1236c8;
+  --blue-light: #6f8bff;
+  --blue-mist: #a9bbff;
+  --blue-glow: #8fa8ff;
+  --red: #b8251e;
+  --red-ground: #e7e3dd;
+  --night: #070914;
+  --night-end: #05060d;
+  --night-text: #eef0ff;
+  --green: #14a44d;
+  --green-dark: #2bd46b;
+
+  --ground-hero: #ecebe6;
+  --ground-index: #ecebe6;
+  --ground-frontend: #e8e8e6;
+  --ground-backend: #e1e2e8;
+  --ground-cloud: #d8dbe6;
+  --ground-data: #cbd1e4;
+  --ground-ai-products: #bec5df;
+  --ground-ai-coding: #e7e3dd;
+  --ground-teaching: #2a3260;
+  --ground-teaching-end: #232a54;
+  --ground-about: #070914;
+  --ground-say-hi: #05060d;
+
+  --font-display: 'Schibsted Grotesk Variable', 'Schibsted Grotesk', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono Variable', 'JetBrains Mono', ui-monospace, monospace;
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+
+  --margin: 48px;
+  --gutter: 24px;
+  --rule: 2px;
+  --design-w: 1280;
+  --design-h: 880;
+}
+
+@media (max-width: 899.98px) {
+  :root {
+    --margin: 20px;
+    --gutter: 16px;
+  }
+}

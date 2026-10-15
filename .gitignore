@@ -1,0 +1,8 @@
+node_modules
+dist
+de/index.html
+.DS_Store
+*.log
+__pycache__
+.venv
+docs/motion/raw

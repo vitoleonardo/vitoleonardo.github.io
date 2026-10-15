@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Impressum, Vito Krawutschke</title>
+  <meta name="description" content="Impressum von Viktor Leonardo Krawutschke gemäß § 5 DDG." />
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <link rel="stylesheet" href="@fontsource-variable/schibsted-grotesk/wght.css" />
+  <link rel="stylesheet" href="@fontsource-variable/jetbrains-mono/wght.css" />
+  <link rel="stylesheet" href="/src/styles/tokens.css" />
+  <style>
+    body {
+      margin: 0;
+      background: var(--paper);
+      color: var(--ink);
+      font-family: var(--font-display);
+      font-size: 1.0625rem;
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+    }
+    .skip-link {
+      position: absolute;
+      left: 16px;
+      top: 16px;
+      padding: 10px 16px;
+      background: var(--ink);
+      color: var(--paper);
+      transform: translateY(-200%);
+    }
+    .skip-link:focus-visible {
+      transform: none;
+      outline: 3px solid var(--blue);
+      outline-offset: 3px;
+    }
+    a:focus-visible {
+      outline: 3px solid var(--blue);
+      outline-offset: 3px;
+    }
+    .page {
+      max-width: 760px;
+      margin: 0 auto;
+      padding: var(--margin) var(--margin) 96px;
+    }
+    .top {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      flex-wrap: wrap;
+      gap: var(--space-4);
+      padding-bottom: var(--space-4);
+      border-bottom: 2px solid var(--ink);
+      font-family: var(--font-mono);
+      font-size: 0.9375rem;
+    }
+    .top a {
+      text-decoration: none;
+    }
+    .top a:hover {
+      text-decoration: underline;
+    }
+    .draft {
+      display: inline-block;
+      margin: var(--space-10) 0 0;
+      padding: 4px 12px;
+      border: 2px solid var(--red);
+      color: var(--red);
+      font-family: var(--font-mono);
+      font-size: 0.875rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+    h1 {
+      margin: var(--space-6) 0 var(--space-8);
+      font-size: clamp(2.25rem, 6vw, 3.5rem);
+      font-weight: 700;
+      line-height: 1.05;
+      letter-spacing: -0.02em;
+    }
+    h2 {
+      margin: var(--space-10) 0 var(--space-3);
+      font-size: 1.25rem;
+      font-weight: 700;
+    }
+    p {
+      margin: 0 0 var(--space-3);
+    }
+    address {
+      margin: 0 0 var(--space-3);
+      font-style: normal;
+    }
+    .todo {
+      padding: 0 4px;
+      background: var(--blue-mist);
+      font-family: var(--font-mono);
+      font-size: 0.9375rem;
+    }
+    .meta {
+      margin-top: var(--space-12);
+      padding-top: var(--space-4);
+      border-top: 2px solid var(--ink);
+      font-family: var(--font-mono);
+      font-size: 0.875rem;
+    }
+  </style>
+</head>
+<body>
+  <a class="skip-link" href="#main">Zum Inhalt springen</a>
+  <div class="page">
+    <header class="top">
+      <a href="/">Vito Krawutschke</a>
+      <nav aria-label="Sprache und Seiten">
+        <a href="/">EN</a> · <a href="/de/" aria-current="page">DE</a>
+      </nav>
+    </header>
+    <main id="main">
+      <span class="draft">Entwurf</span>
+      <h1>Impressum</h1>
+
+      <h2>Angaben gemäß § 5 DDG</h2>
+      <address>
+        Viktor Leonardo Krawutschke<br />
+        <span class="todo">TODO: Postanschrift einfügen</span><br />
+        Köln, Deutschland
+      </address>
+
+      <h2>Kontakt</h2>
+      <p>Telefon: <span class="todo">TODO: Telefonnummer einfügen</span></p>
+      <p>E-Mail: <a href="mailto:viktor.krawutschke@gmail.com">viktor.krawutschke@gmail.com</a></p>
+
+      <h2>Verantwortlich für den Inhalt</h2>
+      <address>
+        Viktor Leonardo Krawutschke<br />
+        <span class="todo">TODO: Postanschrift einfügen</span><br />
+        Köln, Deutschland
+      </address>
+
+      <p class="meta">Stand: 14.10.2026. Zur Datenschutzerklärung geht es <a href="/datenschutz/">hier</a>.</p>
+    </main>
+  </div>
+</body>
+</html>
