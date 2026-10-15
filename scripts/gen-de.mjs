@@ -1,4 +1,4 @@
-import { readFileSync, writeFileSync } from 'node:fs'
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 
 const projectRoot = new URL('../', import.meta.url).pathname
 const { en } = await import(`${projectRoot}src/content/en.ts`)
@@ -99,6 +99,7 @@ const source = readFileSync(`${projectRoot}index.html`, 'utf8')
 const bodyStart = source.indexOf('<body>')
 const dictionary = buildDictionary(en, de)
 const body = translateBody(source.slice(bodyStart), dictionary)
+mkdirSync(`${projectRoot}de`, { recursive: true })
 writeFileSync(`${projectRoot}de/index.html`, translateHead(source.slice(0, bodyStart)) + body.html)
 
 const untranslated = [...body.missing].filter((text) => !KNOWN_UNTRANSLATED.has(text))
