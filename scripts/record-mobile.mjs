@@ -83,7 +83,10 @@ await drag(-0.55 * HEIGHT, 90)
 await pause(1500)
 
 await cdp.send('Page.stopScreencast')
-if (MOTION_LOG) writeFileSync(`${outDir}${LABEL}-log.json`, JSON.stringify(await page.evaluate(() => window.__motionLog?.dump())))
+if (MOTION_LOG) {
+  const log = await page.evaluate(() => ({ ...window.__motionLog?.dump(), timeOrigin: performance.timeOrigin }))
+  writeFileSync(`${outDir}${LABEL}-log.json`, JSON.stringify({ ...log, videoStart: frames[0].time * 1000 }))
+}
 await browser.close()
 
 const lines = ['ffconcat version 1.0']
