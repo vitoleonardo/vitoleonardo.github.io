@@ -42,6 +42,16 @@
   background: transparent;
 }
 
+@media (max-width: 899.98px) {
+  .three-ready:not(.rm) .panel:not(.section-hero)::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    background: var(--ground);
+  }
+}
+
 .section-index {
   --ground: var(--ground-index);
 }

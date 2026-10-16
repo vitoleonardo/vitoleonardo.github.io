@@ -6,12 +6,7 @@ const LAYER_CLASS = 'ground-layer'
 
 export interface GroundLayers {
   set(position: number): void
-  follow(sections: ReadonlyArray<HTMLElement | null>): void
   destroy(): void
-}
-
-export function sceneSections(): Array<HTMLElement | null> {
-  return SCENES.map((scene) => document.getElementById(scene.id))
 }
 
 export function createGroundLayers(): GroundLayers | null {
@@ -49,26 +44,6 @@ export function createGroundLayers(): GroundLayers | null {
         applied[index] = opacity
         layers[index].style.opacity = opacity.toFixed(3)
       }
-    },
-    follow(sections) {
-      const viewportHeight = window.innerHeight
-      layers.forEach((layer, index) => {
-        const section = sections[index]
-        const rect = section?.getBoundingClientRect()
-        const visible = Boolean(rect && rect.bottom > 0 && rect.top < viewportHeight && rect.height > 0)
-        if (covered[index] !== !visible) {
-          covered[index] = !visible
-          layer.style.visibility = visible ? 'visible' : 'hidden'
-        }
-        if (!visible || !rect) return
-        if (applied[index] !== 1) {
-          applied[index] = 1
-          layer.style.opacity = '1'
-        }
-        const top = Math.max(0, Math.round(rect.top))
-        const bottom = Math.max(0, Math.round(viewportHeight - rect.bottom))
-        layer.style.clipPath = `inset(${top}px 0 ${bottom}px 0)`
-      })
     },
     destroy() {
       layers.forEach((layer) => layer.remove())
