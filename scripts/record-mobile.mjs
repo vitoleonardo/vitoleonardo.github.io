@@ -5,6 +5,7 @@ import { chromium } from 'playwright'
 const BASE = process.env.BASE || 'http://localhost:4173'
 const LABEL = process.env.LABEL || 'mobile'
 const MOTION_LOG = Boolean(process.env.MOTION_LOG)
+const DPR = Number(process.env.DPR || 2)
 const WIDTH = 393
 const HEIGHT = 852
 const SETTLE_MS = 2500
@@ -25,7 +26,7 @@ const browser = await chromium.launch({
 })
 const context = await browser.newContext({
   viewport: { width: WIDTH, height: HEIGHT },
-  deviceScaleFactor: 2,
+  deviceScaleFactor: DPR,
   isMobile: true,
   hasTouch: true,
   userAgent:
