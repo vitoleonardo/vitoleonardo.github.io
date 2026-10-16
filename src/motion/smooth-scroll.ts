@@ -2,6 +2,7 @@ import { gsap } from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
 import Lenis from 'lenis'
 import { timed } from '../debug/probe'
+import { env } from '../env'
 import { TUNE } from '../tune'
 
 export interface SmoothScroll {
@@ -46,7 +47,7 @@ export function snapScrollTo(lenis: Lenis | null, target: number, duration: numb
 
 function scrollEased(lenis: Lenis | null, target: number, duration: number, easing: (progress: number) => number, onComplete?: () => void): void {
   if (!lenis) {
-    window.scrollTo({ top: target, behavior: 'auto' })
+    window.scrollTo({ top: target, behavior: env.reducedMotion ? 'auto' : 'smooth' })
     onComplete?.()
     return
   }

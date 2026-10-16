@@ -3,6 +3,7 @@ import { ScrollTrigger } from 'gsap/ScrollTrigger'
 import { SplitText } from 'gsap/SplitText'
 import type Lenis from 'lenis'
 import { motionDebug, probeEvent, timed } from '../debug/probe'
+import { env } from '../env'
 import { pathReady } from '../path-bridge'
 import { bindAnchorNavigation, jumpToHash } from './anchors'
 import type { MotionContext, MotionMode, SectionMotion } from './context'
@@ -50,9 +51,11 @@ function runMode(mode: MotionMode, path: PathPort, sections: SectionMotion[]): (
   let stage: Stage | null = null
 
   if (mode !== 'reduced') {
-    const smooth = createSmoothScroll()
-    lenis = smooth.lenis
-    cleanups.push(() => smooth.destroy())
+    if (!env.mobile) {
+      const smooth = createSmoothScroll()
+      lenis = smooth.lenis
+      cleanups.push(() => smooth.destroy())
+    }
     const ground = createGroundLayers()
     if (ground) cleanups.push(() => ground.destroy())
     if (mode === 'desktop') {

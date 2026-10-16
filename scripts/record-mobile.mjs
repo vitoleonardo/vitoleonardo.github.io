@@ -48,12 +48,7 @@ await cdp.send('Page.startScreencast', { format: 'jpeg', quality: 85, maxWidth: 
 await page.waitForTimeout(500)
 
 const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
-const roundTrips = []
-const touch = async (type, y) => {
-  const sent = performance.now()
-  await cdp.send('Input.dispatchTouchEvent', { type, touchPoints: type === 'touchEnd' ? [] : [{ x: WIDTH / 2, y }] })
-  roundTrips.push(performance.now() - sent)
-}
+const touch = (type, y) => cdp.send('Input.dispatchTouchEvent', { type, touchPoints: type === 'touchEnd' ? [] : [{ x: WIDTH / 2, y }] })
 const drag = async (distance, ms) => {
   const from = distance > 0 ? HEIGHT * 0.8 : HEIGHT * 0.2
   const start = performance.now()
@@ -104,8 +99,5 @@ execFileSync('ffmpeg', ['-v', 'error', '-y', '-f', 'concat', '-safe', '0', '-i',
 rmSync(framesDir, { recursive: true, force: true })
 
 const seconds = frames.length > 1 ? frames[frames.length - 1].time - frames[0].time : 0
-const sorted = roundTrips.slice().sort((a, b) => a - b)
-const percentile = (share) => sorted[Math.min(sorted.length - 1, Math.floor(share * sorted.length))].toFixed(1)
 console.log(`${outFile}: ${frames.length} frames over ${seconds.toFixed(2)} s (${(frames.length / Math.max(seconds, 1e-3)).toFixed(1)} fps)`)
-console.log(`touch event round trip: p50 ${percentile(0.5)} ms, p95 ${percentile(0.95)} ms over ${sorted.length} events`)
 console.log(`next: python3 scripts/motion-timing/sync_check.py ${outFile}`)
