@@ -22,13 +22,22 @@ export interface PagePoint {
   y: number
 }
 
+export interface StageOrigin {
+  left: number
+  top: number
+}
+
+export const VIEWPORT_ORIGIN: StageOrigin = { left: 0, top: 0 }
+
 export class StageRegistry {
   private elements = new Map<FigureId, HTMLElement>()
   private fits = new Map<string, StageFit>()
+  private rects = new Map<FigureId, DOMRect>()
   private viewportWidth = 1
   private viewportHeight = 1
   private edgeMargin = 80
   private stretchVertically = true
+  private origin = VIEWPORT_ORIGIN
 
   constructor(private readonly root: ParentNode = document) {
     this.collect()
@@ -36,26 +45,41 @@ export class StageRegistry {
 
   collect(): void {
     this.elements.clear()
+    this.rects.clear()
     this.root.querySelectorAll<HTMLElement>('[data-path-stage]').forEach((element) => {
       const id = element.dataset.pathStage as FigureId | undefined
       if (id && !this.elements.has(id)) this.elements.set(id, element)
     })
   }
 
-  positionSignature(ids: FigureId[]): number {
+  forget(): void {
+    this.rects.clear()
+  }
+
+  rect(id: FigureId): DOMRect | undefined {
+    let rect = this.rects.get(id)
+    if (!rect) {
+      rect = this.elements.get(id)?.getBoundingClientRect()
+      if (rect) this.rects.set(id, rect)
+    }
+    return rect
+  }
+
+  positionSignature(ids: FigureId[], origin: StageOrigin = VIEWPORT_ORIGIN): number {
     let signature = 0
     for (const id of ids) {
-      const rect = this.elements.get(id)?.getBoundingClientRect()
-      if (rect) signature += rect.left * 1.37 + rect.top * 0.73 + rect.width * 0.11
+      const rect = this.rect(id)
+      if (rect) signature += (rect.left - origin.left) * 1.37 + (rect.top - origin.top) * 0.73 + rect.width * 0.11
     }
     return signature
   }
 
-  beginFrame(viewportWidth: number, viewportHeight: number, edgeMargin: number, stretchVertically: boolean): void {
+  beginFrame(viewportWidth: number, viewportHeight: number, edgeMargin: number, stretchVertically: boolean, origin: StageOrigin = VIEWPORT_ORIGIN): void {
     this.viewportWidth = viewportWidth
     this.viewportHeight = viewportHeight
     this.edgeMargin = edgeMargin
     this.stretchVertically = stretchVertically
+    this.origin = origin
     this.fits.clear()
   }
 
@@ -63,11 +87,10 @@ export class StageRegistry {
     const key = fillStage ? `fill:${id}` : id
     const cached = this.fits.get(key)
     if (cached) return cached
-    const element = this.elements.get(id)
-    const rect = element?.getBoundingClientRect()
+    const rect = this.rect(id)
     const usable = rect && rect.width > 0 && rect.height > 0
-    const boxLeft = usable ? rect.left : 0
-    const boxTop = usable ? rect.top : 0
+    const boxLeft = usable ? rect.left - this.origin.left : 0
+    const boxTop = usable ? rect.top - this.origin.top : 0
     const boxWidth = usable ? rect.width : this.viewportWidth
     const boxHeight = usable ? rect.height : this.viewportHeight
     const containScale = Math.min(boxWidth / DESIGN_WIDTH, boxHeight / DESIGN_HEIGHT)

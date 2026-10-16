@@ -8,14 +8,16 @@ import { copyFrame, createFrame, sameFrame } from '../frame'
 import type { FigureId, PathApi } from '../types'
 import { AgentNodes } from './agent-nodes'
 import { beatClock } from './beat-clock'
-import { createCamera, fitCamera, getCamera, getViewport, pageToWorld } from './camera'
+import { aimCamera, createCamera, fitCamera, getCamera, getViewport, pageToWorld } from './camera'
 import type { FrameContext, PathExtra } from './extras'
 import { FIGURE_IDS, type Figure, type FigureVariant, getFigure, PATH_POINT_COUNT, sampleAllFigures } from './figures'
 import { createPathMaterials, NIGHT_EMISSIVE_MAX } from './materials'
 import { BLOOM_STRENGTH, NightGlow } from './night'
 import { RocketExtra } from './rocket'
 import { ContactShadow, SHADOW_LAYER, type ShadowCaster } from './shadow'
-import { designToPage, designToPageStrict, type StageFit, StageRegistry } from './stages'
+import { CanvasAnchor, type Placement } from './anchor'
+import { NO_BUFFER, resizedBuffer } from './buffer'
+import { designToPage, designToPageStrict, type StageFit, StageRegistry, VIEWPORT_ORIGIN } from './stages'
 import { DataStrands } from './strands'
 import { SunExtra } from './sun'
 import { PathTube } from './tube'
@@ -44,6 +46,7 @@ const STAGE_MOVE_EPSILON = 0.25
 const READY_CLASS = 'three-ready'
 const IDLE_SLICE_TIMEOUT_MS = 120
 const READY_FALLBACK_MS = 700
+const ANCHOR_BLEED = 160
 
 function createEnvironment(renderer: WebGLRenderer): Texture {
   const pmrem = new PMREMGenerator(renderer)
@@ -86,6 +89,9 @@ export async function initPath(canvas: HTMLCanvasElement): Promise<PathApi> {
   const scene = new Scene()
   createCamera()
   const stages = new StageRegistry()
+  const anchor = new CanvasAnchor(canvas)
+  const heroSection = document.getElementById('hero')
+  const trackedRects: DOMRect[] = []
   const tube = new PathTube(PATH_POINT_COUNT, RADIAL_SEGMENTS)
   const tubeMesh = new Mesh(tube.geometry, materials.tube)
   const capsMesh = new Mesh(tube.capsGeometry, materials.tube)
@@ -153,15 +159,14 @@ export async function initPath(canvas: HTMLCanvasElement): Promise<PathApi> {
     pathCount: PATH_POINT_COUNT,
   }
 
-  const bufferSize = { width: 0, height: 0, pixelRatio: 0 }
-  const resize = (cause: string): boolean => {
-    const width = canvas.clientWidth || window.innerWidth
-    const height = canvas.clientHeight || window.innerHeight
-    const pixelRatio = Math.min(window.devicePixelRatio || 1, env.touch ? DPR_CAP_TOUCH : DPR_CAP_DESKTOP)
-    if (width === bufferSize.width && height === bufferSize.height && pixelRatio === bufferSize.pixelRatio) return false
-    bufferSize.width = width
-    bufferSize.height = height
-    bufferSize.pixelRatio = pixelRatio
+  let bufferSize = NO_BUFFER
+  const resize = (cause: string, size?: Placement): boolean => {
+    const width = size?.width ?? (canvas.clientWidth || window.innerWidth)
+    const height = size?.height ?? (canvas.clientHeight || window.innerHeight)
+    const next = resizedBuffer(bufferSize, width, height, window.devicePixelRatio, env.touch ? DPR_CAP_TOUCH : DPR_CAP_DESKTOP)
+    if (!next) return false
+    bufferSize = next
+    const pixelRatio = next.pixelRatio
     renderer.setDrawingBufferSize(width, height, pixelRatio)
     fitCamera(width, height)
     shadow.setSize(width, height)
@@ -256,9 +261,10 @@ export async function initPath(canvas: HTMLCanvasElement): Promise<PathApi> {
     materials.setNightLighting(night)
   }
 
-  const renderFrame = (nowMs: number): void => {
+  const renderFrame = (nowMs: number, placement: Placement | null): void => {
     const viewport = getViewport()
-    stages.beginFrame(viewport.width, viewport.height, radius * 2 + EDGE_MARGIN_EXTRA, !env.mobile)
+    if (placement) aimCamera(placement.left, placement.top, placement.screenHeight)
+    stages.beginFrame(viewport.width, viewport.height, radius * 2 + EDGE_MARGIN_EXTRA, !env.mobile, placement ?? VIEWPORT_ORIGIN)
     const seconds = nowMs / 1000
     if (frameDirty) {
       pathVisible = rebuildPath()
@@ -298,16 +304,45 @@ export async function initPath(canvas: HTMLCanvasElement): Promise<PathApi> {
   }
 
   const trackedIds: FigureId[] = []
+  const anchorCanvas = (): boolean => {
+    if (!env.mobile) {
+      if (!anchor.release()) return false
+      bufferSize = NO_BUFFER
+      resize('release')
+      return true
+    }
+    trackedRects.length = 0
+    for (const id of trackedIds) {
+      const rect = stages.rect(id)
+      if (rect) trackedRects.push(rect)
+    }
+    const heroOnly = trackedIds.every((id) => id === 'hero')
+    if (!anchor.place(trackedRects, heroOnly ? heroSection : null, ANCHOR_BLEED)) return false
+    resize('anchor', anchor.placement)
+    if (motionDebug) probeEvent('anchor', { top: anchor.placement.top, height: anchor.placement.height, hero: heroOnly })
+    return true
+  }
+
+  const currentPlacement = (): Placement | null => (anchor.anchored ? anchor.measure() : null)
+  const drawNow = (): void => {
+    stages.forget()
+    renderFrame(performance.now(), currentPlacement())
+  }
+
   const tick = timed('three', (): void => {
-    if (disposed || contextLost || tabHidden || canvasOffscreen) return
+    if (disposed || contextLost || tabHidden) return
+    stages.forget()
     trackedIds.length = 0
     trackedIds.push(frame.from)
     if (frame.to !== frame.from) trackedIds.push(frame.to)
     if (frame.from !== 'hero' && frame.to !== 'hero' && frame.sun.opacity > 0) trackedIds.push('hero')
-    const signature = stages.positionSignature(trackedIds)
+    if (anchorCanvas()) frameDirty = true
+    const placement = anchor.anchored ? anchor.placement : null
+    const signature = stages.positionSignature(trackedIds, placement ?? VIEWPORT_ORIGIN)
     if (Math.abs(signature - renderedSignature) > STAGE_MOVE_EPSILON) frameDirty = true
     renderedSignature = signature
-    renderFrame(performance.now())
+    if (canvasOffscreen && !frameDirty) return
+    renderFrame(performance.now(), placement)
     if (stateReceived && !readyAnnounced) {
       readyAnnounced = true
       document.documentElement.classList.add(READY_CLASS)
@@ -331,7 +366,7 @@ export async function initPath(canvas: HTMLCanvasElement): Promise<PathApi> {
   intersection.observe(canvas)
   const redraw = (): void => {
     if (!running || disposed || contextLost || tabHidden) return
-    renderFrame(performance.now())
+    drawNow()
   }
   const resizeObserver = new ResizeObserver(() => {
     if (resize('observer')) redraw()
@@ -350,7 +385,7 @@ export async function initPath(canvas: HTMLCanvasElement): Promise<PathApi> {
     contextLost = false
     resize('restore')
     frameDirty = true
-    renderFrame(performance.now())
+    drawNow()
     document.documentElement.classList.add(READY_CLASS)
   }
 
@@ -367,6 +402,7 @@ export async function initPath(canvas: HTMLCanvasElement): Promise<PathApi> {
     disposed = true
     window.clearTimeout(readyFallbackTimer)
     gsap.ticker.remove(tick)
+    anchor.release()
     window.removeEventListener('resize', markDirty)
     document.removeEventListener('visibilitychange', onVisibility)
     canvas.removeEventListener('webglcontextlost', onContextLost)
@@ -409,7 +445,7 @@ export async function initPath(canvas: HTMLCanvasElement): Promise<PathApi> {
     await shadow.prepare(renderer)
     await idleSlice()
     if (!env.mobile) nightGlow.warm()
-    renderFrame(performance.now())
+    drawNow()
   } catch (error) {
     dispose()
     throw error
