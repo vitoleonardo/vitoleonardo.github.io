@@ -44,7 +44,7 @@ The timing decisions (scroll length per scene, morph durations, snap easing) are
 
 ## Fallbacks and accessibility
 
-- **Narrow screens (< 900 px):** scenes scroll natively and the path follows each section instead of a pinned stage.
+- **Narrow screens (< 900 px):** scenes scroll natively without a smooth-scroll layer, the hero holds with `position: sticky`, and the path canvas scrolls with the page, so the tube stays on its stage while the browser scrolls.
 - **Reduced motion:** a static stacked layout with plain fades and no WebGL.
 - **No WebGL:** every figure ships as an inline SVG generated from the same shape data (`npm run fallbacks`).
 - **Keyboard:** `↑ ↓` or `J K` step through the scenes, `1`–`0` jump, and the page counter opens a section menu.
@@ -73,7 +73,12 @@ The tests cover the pure core: every scene boundary hands over without a visible
 | `npm run capture` | Screenshots the client sites shown in the frontend stop into `public/work/` |
 | `node scripts/record-motion.mjs` | Records a steady scroll through the site to `docs/motion/recording.webm` |
 | `node scripts/measure-frames.mjs` | Scrolls the stack and reports frame intervals and long tasks |
+| `node scripts/record-mobile.mjs` | Records a scripted touch gesture in phone emulation to `docs/motion/raw/<LABEL>.mp4`; `MOTION_LOG=1` also saves the `?debug=motion` log, `DPR=1` records at a lower pixel ratio |
+| `node scripts/blank-frame-check.mjs` | Changes the phone viewport height eight times, like the Safari toolbar does, and fails if the path canvas shows a blank frame |
+| `python3 scripts/motion-timing/sync_check.py <video>` | Checks a phone screen recording for blank canvas frames, a frozen tube, a tube moving on its own and page jumps |
 | `scripts/motion-timing/` | Python tools that measure beat timing in the reference video and model the site's tempo (see its `requirements.txt`) |
+
+The browser scripts expect `npm run preview` to be running and use Playwright's Chromium; set `CHROMIUM_PATH` to use another build. Open any page with `?debug=motion` to log per-frame scroll, canvas and timing data; the overlay's copy button puts the log on the clipboard as JSON. Adding `&preserve=1` creates the path renderer with `preserveDrawingBuffer`, for testing whether a blank frame is a cleared buffer.
 
 ## Deployment
 

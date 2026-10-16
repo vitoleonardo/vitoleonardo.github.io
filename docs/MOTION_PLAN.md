@@ -29,6 +29,15 @@ Figures: control points in 1280 x 720, Chaikin 5 iterations (25 / 75 %), resampl
 ## Mobile (< 900 px) and fallbacks
 Same engine and score with MOBILE_TIMING (the values before the tempo map, since stages scroll in instead of crossfading); each figure maps into its own section stage, morphs run while the next stage scrolls in, radius 11, no bloom. Reduced motion and no WebGL keep static SVG figures, regenerated from the same control points by scripts/gen-fallbacks.mjs.
 
+Phones scroll on the compositor, so anything placed by the main thread lags whenever a main-thread frame is late. Since 16.10.2026 nothing on phones is placed per frame against the scroll:
+- Native scrolling, no Lenis: Lenis registers non-passive touch and wheel listeners on window, which make every touch wait for the main thread (flick starts jumped). Anchor links glide with `scrollTo({ behavior: 'smooth' })`.
+- Hero hold: the hero is `position: sticky` in a runway with a 120 svh spacer, scrubbed by a ScrollTrigger without a pin, so its release is layout and not a fixed to static swap.
+- Path canvas: positioned in the document (inside the sticky hero during scene 0) instead of fixed to the screen, so the compositor scrolls the drawn tube with its stages. One fixed size, `200vh` (two large viewports, which the toolbar does not change), so scrolling never reallocates the buffer; it moves only when the tracked stages no longer fit (`planTop` in src/three/anchor.ts) and is drawn in the same frame. The camera keeps its perspective centred on the screen (`setViewOffset`), so the tube looks as it did on the full-screen canvas. Buffer at the touch DPR cap 1.5 on a 393 x 852 phone: 590 x 2556 px (1.5 MP, was 0.75 MP).
+- Grounds: each panel paints its own flat ground on a `::before` at z-index -1, below the tube and the copy; the hero stays transparent over the `#ground` paper (same colour), because the sticky hero is a stacking context above the canvas. Desktop keeps the fixed crossfading ground layers.
+- Resizes: the drawing buffer is reallocated only when its CSS size or capped pixel ratio changes, and redrawn in the same task (a resized WebGL buffer is cleared).
+
+Open: the morph between two stops still travels across the next panel's copy. Two prototypes, off by default: `?morph=a` draws the incoming figure on in its own stage while the outgoing one leaves with its section; `?morph=b` keeps the travel but passes behind the bars and copy (this also clips the rocket glow at rest).
+
 ## Tempo map (measured and applied 15.10.2026)
 Reference speed 0.978 vh/s: 13.1 vh over the 13.4 scroll-driven video seconds (1.6 to 15 s), so 880 px/s at 900 px tall. Scrub lag 94 ms (expo restart over 0.65 s), Lenis lag 185 ms. Video measured with scripts/motion-timing (optical flow on all 450 frames); site curves modelled from DESKTOP_TIMING in score.ts. Duration = onset to settle at 10 % of peak speed; deltas in 30 fps frames. Curves: docs/motion-tempo.png, docs/motion/video-timeline.png.
 
@@ -54,4 +63,5 @@ Reference speed 0.978 vh/s: 13.1 vh over the 13.4 scroll-driven video seconds (1
 Already matching: stop spacing, text out and in around each stop (within about 3 frames), marker stagger 0.07 s. Floor: with scrub 0.65 and wave spread 0.5 no morph gets below about 0.33 s. Snap glide recorded in Chrome: 0.885 s over 680 px, fits sine.inOut (RMSE 0.015, power2.inOut 0.067).
 
 ## Verification
-npm run build; Playwright recording at a steady wheel speed (scripts/record-motion.mjs); docs/motion-compare.png with sun impact, data stop and rocket next to the video frames; frame time measured in the sideways section. Timing: `python scripts/motion-timing/video_timing.py <video> docs/motion/video-timing.json`, then `tempo_report.py` (requirements.txt beside it).
+npm run build; Playwright recording at a steady wheel speed (scripts/record-motion.mjs); docs/motion-compare.png with sun impact, data stop and rocket next to the video frames; frame time measured in the sideways section.
+Mobile: `node scripts/blank-frame-check.mjs` (toolbar resizes must never show a blank canvas); `node scripts/record-mobile.mjs` then `python3 scripts/motion-timing/sync_check.py` on the video (blank, frozen tube, tube moving alone, page jumps); `?debug=motion` logs per-frame scroll, canvas placement, reallocations and listener times on a real device. Timing: `python scripts/motion-timing/video_timing.py <video> docs/motion/video-timing.json`, then `tempo_report.py` (requirements.txt beside it).

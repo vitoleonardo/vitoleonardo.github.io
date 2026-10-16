@@ -1,20 +1,24 @@
 import { gsap } from 'gsap'
 import { Mesh, NoToneMapping, PMREMGenerator, Scene, SRGBColorSpace, type Texture, Vector3, WebGLRenderer } from 'three'
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js'
+import { motionDebug, preserveBuffer, probeEvent, timed } from '../debug/probe'
 import { env } from '../env'
 import { HERO_IMPACT } from '../figures/shapes'
 import { copyFrame, createFrame, sameFrame } from '../frame'
+import { sineInOut } from '../math'
 import type { FigureId, PathApi } from '../types'
 import { AgentNodes } from './agent-nodes'
+import { CanvasAnchor, type Placement } from './anchor'
 import { beatClock } from './beat-clock'
-import { createCamera, fitCamera, getCamera, getViewport, pageToWorld } from './camera'
+import { NO_BUFFER, resizedBuffer } from './buffer'
+import { aimCamera, createCamera, fitCamera, getCamera, getViewport, pageToWorld } from './camera'
 import type { FrameContext, PathExtra } from './extras'
 import { FIGURE_IDS, type Figure, type FigureVariant, getFigure, PATH_POINT_COUNT, sampleAllFigures } from './figures'
 import { createPathMaterials, NIGHT_EMISSIVE_MAX } from './materials'
 import { BLOOM_STRENGTH, NightGlow } from './night'
 import { RocketExtra } from './rocket'
 import { ContactShadow, SHADOW_LAYER, type ShadowCaster } from './shadow'
-import { designToPage, designToPageStrict, type StageFit, StageRegistry } from './stages'
+import { designToPage, designToPageStrict, type StageFit, StageRegistry, VIEWPORT_ORIGIN } from './stages'
 import { DataStrands } from './strands'
 import { SunExtra } from './sun'
 import { PathTube } from './tube'
@@ -43,6 +47,8 @@ const STAGE_MOVE_EPSILON = 0.25
 const READY_CLASS = 'three-ready'
 const IDLE_SLICE_TIMEOUT_MS = 120
 const READY_FALLBACK_MS = 700
+const ANCHOR_BLEED = 160
+const DRAW_ON_FIGURES = new Set<FigureId>(['frontend', 'backend', 'cloud', 'data', 'ai-products', 'ai-coding', 'teaching'])
 
 function createEnvironment(renderer: WebGLRenderer): Texture {
   const pmrem = new PMREMGenerator(renderer)
@@ -65,7 +71,7 @@ function isFigureId(value: string): value is FigureId {
 }
 
 export async function initPath(canvas: HTMLCanvasElement): Promise<PathApi> {
-  const renderer = new WebGLRenderer({ canvas, antialias: true, alpha: true, powerPreference: 'high-performance' })
+  const renderer = new WebGLRenderer({ canvas, antialias: true, alpha: true, powerPreference: 'high-performance', preserveDrawingBuffer: preserveBuffer })
   let shaderFailed = false
   renderer.debug.onShaderError = () => {
     shaderFailed = true
@@ -85,6 +91,9 @@ export async function initPath(canvas: HTMLCanvasElement): Promise<PathApi> {
   const scene = new Scene()
   createCamera()
   const stages = new StageRegistry()
+  const anchor = new CanvasAnchor(canvas)
+  const heroSection = document.getElementById('hero')
+  const trackedRects: DOMRect[] = []
   const tube = new PathTube(PATH_POINT_COUNT, RADIAL_SEGMENTS)
   const tubeMesh = new Mesh(tube.geometry, materials.tube)
   const capsMesh = new Mesh(tube.capsGeometry, materials.tube)
@@ -93,6 +102,15 @@ export async function initPath(canvas: HTMLCanvasElement): Promise<PathApi> {
     mesh.layers.enable(SHADOW_LAYER)
   }
   scene.add(tubeMesh, capsMesh)
+  const ghost = new PathTube(PATH_POINT_COUNT, RADIAL_SEGMENTS)
+  const ghostMesh = new Mesh(ghost.geometry, materials.tube)
+  const ghostCapsMesh = new Mesh(ghost.capsGeometry, materials.tube)
+  for (const mesh of [ghostMesh, ghostCapsMesh]) {
+    mesh.frustumCulled = false
+    mesh.visible = false
+    mesh.layers.enable(SHADOW_LAYER)
+  }
+  scene.add(ghostMesh, ghostCapsMesh)
 
   const shadow = new ContactShadow()
   const nightGlow = new NightGlow(renderer)
@@ -101,6 +119,8 @@ export async function initPath(canvas: HTMLCanvasElement): Promise<PathApi> {
   const shadowCasters: ShadowCaster[] = [
     { mesh: tubeMesh, opacity: () => 1 },
     { mesh: capsMesh, opacity: () => 1 },
+    { mesh: ghostMesh, opacity: () => 1 },
+    { mesh: ghostCapsMesh, opacity: () => 1 },
   ]
   extras.forEach((extra) => {
     scene.add(extra.object)
@@ -112,17 +132,23 @@ export async function initPath(canvas: HTMLCanvasElement): Promise<PathApi> {
   const smoothed = new Float32Array(PATH_POINT_COUNT * 3)
   const scratch = new Float32Array(PATH_POINT_COUNT * 3)
   const worldPoints = new Float32Array(PATH_POINT_COUNT * 3)
+  const ghostWorld = new Float32Array(PATH_POINT_COUNT * 3)
   const ringRadius = new Float32Array(PATH_POINT_COUNT).fill(1)
+  const radiusScratch = new Float32Array(PATH_POINT_COUNT)
+  const arcs = new Float32Array(PATH_POINT_COUNT)
   const page = { x: 0, y: 0 }
   const world = new Vector3()
   let frameDirty = true
   let pathVisible = false
+  let ghostVisible = false
   let radius = TUBE_RADIUS_DESIGN
   let pathScale = 1
   let tabHidden = document.hidden
   let canvasOffscreen = false
   let contextLost = false
   let disposed = false
+  let running = false
+  let layoutRead = false
   let stateReceived = false
   let readyAnnounced = false
   let readyFallbackTimer = 0
@@ -151,16 +177,21 @@ export async function initPath(canvas: HTMLCanvasElement): Promise<PathApi> {
     pathCount: PATH_POINT_COUNT,
   }
 
-  const resize = (): void => {
-    const width = canvas.clientWidth || window.innerWidth
-    const height = canvas.clientHeight || window.innerHeight
-    const pixelRatio = Math.min(window.devicePixelRatio || 1, env.touch ? DPR_CAP_TOUCH : DPR_CAP_DESKTOP)
-    renderer.setPixelRatio(pixelRatio)
-    renderer.setSize(width, height, false)
+  let bufferSize = NO_BUFFER
+  const resize = (cause: string, size?: Placement): boolean => {
+    const width = size?.width ?? (canvas.clientWidth || window.innerWidth)
+    const height = size?.height ?? (canvas.clientHeight || window.innerHeight)
+    const next = resizedBuffer(bufferSize, width, height, window.devicePixelRatio, env.touch ? DPR_CAP_TOUCH : DPR_CAP_DESKTOP)
+    if (!next) return false
+    bufferSize = next
+    const pixelRatio = next.pixelRatio
+    renderer.setDrawingBufferSize(width, height, pixelRatio)
     fitCamera(width, height)
     shadow.setSize(width, height)
     nightGlow.setSize(width, height, pixelRatio)
     frameDirty = true
+    if (motionDebug) probeEvent('resize', { cause, width, height, pixelRatio })
+    return true
   }
 
   const mapFigure = (figure: Figure, id: FigureId, fit: StageFit, out: Float32Array, grow: number): void => {
@@ -197,12 +228,59 @@ export async function initPath(canvas: HTMLCanvasElement): Promise<PathApi> {
     for (let i = 0; i < count * 3; i++) pagePoints[i] += (smoothed[i] - pagePoints[i]) * weight
   }
 
+  const toWorldPoints = (source: Float32Array, out: Float32Array): void => {
+    for (let i = 0; i < PATH_POINT_COUNT; i++) {
+      pageToWorld(source[i * 3], source[i * 3 + 1], world, source[i * 3 + 2])
+      out[i * 3] = world.x
+      out[i * 3 + 1] = world.y
+      out[i * 3 + 2] = world.z
+    }
+  }
+
+  const keepDrawnShare = (share: number): void => {
+    const count = PATH_POINT_COUNT
+    arcs[0] = 0
+    for (let i = 1; i < count; i++) {
+      const dx = pagePoints[i * 3] - pagePoints[i * 3 - 3]
+      const dy = pagePoints[i * 3 + 1] - pagePoints[i * 3 - 2]
+      const dz = pagePoints[i * 3 + 2] - pagePoints[i * 3 - 1]
+      arcs[i] = arcs[i - 1] + Math.hypot(dx, dy, dz)
+    }
+    scratch.set(pagePoints)
+    radiusScratch.set(ringRadius)
+    let segment = 1
+    for (let i = 0; i < count; i++) {
+      const target = (arcs[count - 1] * share * i) / (count - 1)
+      while (segment < count - 1 && arcs[segment] < target) segment++
+      const span = arcs[segment] - arcs[segment - 1]
+      const t = span > 0 ? Math.min(1, Math.max(0, (target - arcs[segment - 1]) / span)) : 0
+      for (let axis = 0; axis < 3; axis++) {
+        const a = scratch[(segment - 1) * 3 + axis]
+        pagePoints[i * 3 + axis] = a + (scratch[segment * 3 + axis] - a) * t
+      }
+      ringRadius[i] = radiusScratch[segment - 1] + (radiusScratch[segment] - radiusScratch[segment - 1]) * t
+    }
+  }
+
   const rebuildPath = (): boolean => {
     const from = figureOf(frame.from)
     const to = figureOf(frame.to)
     const fromFit = fitOf(frame.from)
     const toFit = fitOf(frame.to)
     const morph = frame.from === frame.to ? 0 : Math.min(1, Math.max(0, frame.morph))
+    ghostVisible = false
+    if (env.morph === 'a' && env.mobile && morph > 0 && DRAW_ON_FIGURES.has(frame.to)) {
+      radius = TUBE_RADIUS_MOBILE
+      pathScale = toFit.scale
+      mapFigure(from, frame.from, fromFit, scratch, frame.heroGrow)
+      toWorldPoints(scratch, ghostWorld)
+      ghostVisible = ghost.update(ghostWorld, radius, from.radius)
+      mapFigure(to, frame.to, toFit, pagePoints, frame.heroGrow)
+      ringRadius.set(to.radius)
+      keepDrawnShare(sineInOut(morph))
+      toWorldPoints(pagePoints, worldPoints)
+      return tube.update(worldPoints, radius, ringRadius)
+    }
     mapFigure(from, frame.from, fromFit, pagePoints, frame.heroGrow)
     if (morph > 0) {
       mapFigure(to, frame.to, toFit, scratch, frame.heroGrow)
@@ -248,16 +326,21 @@ export async function initPath(canvas: HTMLCanvasElement): Promise<PathApi> {
     materials.setNightLighting(night)
   }
 
-  const renderFrame = (nowMs: number): void => {
+  const renderFrame = (nowMs: number, placement: Placement | null): void => {
     const viewport = getViewport()
-    stages.beginFrame(viewport.width, viewport.height, radius * 2 + EDGE_MARGIN_EXTRA, !env.mobile)
+    if (placement) aimCamera(placement.left, placement.top, placement.screenHeight)
+    stages.beginFrame(viewport.width, viewport.height, radius * 2 + EDGE_MARGIN_EXTRA, !env.mobile, placement ?? VIEWPORT_ORIGIN)
     const seconds = nowMs / 1000
     if (frameDirty) {
       pathVisible = rebuildPath()
       frameDirty = false
+      if (motionDebug) probeEvent('rebuild')
     }
     tubeMesh.visible = pathVisible
     capsMesh.visible = pathVisible
+    ghostMesh.visible = ghostVisible
+    ghostCapsMesh.visible = ghostVisible
+    context.pathWorld = ghostVisible && frame.from === 'data' ? ghostWorld : worldPoints
     updateUniforms(nowMs, seconds)
 
     context.time = seconds
@@ -289,21 +372,58 @@ export async function initPath(canvas: HTMLCanvasElement): Promise<PathApi> {
   }
 
   const trackedIds: FigureId[] = []
-  const tick = (): void => {
-    if (disposed || contextLost || tabHidden || canvasOffscreen) return
+  const anchorCanvas = (): boolean => {
+    if (!env.mobile) {
+      if (!anchor.release()) return false
+      bufferSize = NO_BUFFER
+      resize('release')
+      return true
+    }
+    trackedRects.length = 0
+    for (const id of trackedIds) {
+      const rect = stages.rect(id)
+      if (rect) trackedRects.push(rect)
+    }
+    const heroOnly = trackedIds.every((id) => id === 'hero')
+    if (!anchor.place(trackedRects, heroOnly ? heroSection : null, ANCHOR_BLEED)) return false
+    resize('anchor', anchor.placement)
+    if (motionDebug) probeEvent('anchor', { top: anchor.placement.top, height: anchor.placement.height, hero: heroOnly })
+    return true
+  }
+
+  const currentPlacement = (): Placement | null => (anchor.anchored ? anchor.measure() : null)
+  const drawNow = (): void => {
+    stages.forget()
+    renderFrame(performance.now(), currentPlacement())
+  }
+
+  const readLayout = (): void => {
+    if (!running || disposed || contextLost || tabHidden || !env.mobile) return
+    stages.measureAll()
+    anchor.readLayout(trackedIds.every((id) => id === 'hero') ? heroSection : null)
+    layoutRead = true
+  }
+
+  const tick = timed('three', (): void => {
+    if (disposed || contextLost || tabHidden) return
+    if (!layoutRead) stages.forget()
+    layoutRead = false
     trackedIds.length = 0
     trackedIds.push(frame.from)
     if (frame.to !== frame.from) trackedIds.push(frame.to)
     if (frame.from !== 'hero' && frame.to !== 'hero' && frame.sun.opacity > 0) trackedIds.push('hero')
-    const signature = stages.positionSignature(trackedIds)
+    if (anchorCanvas()) frameDirty = true
+    const placement = anchor.anchored ? anchor.placement : null
+    const signature = stages.positionSignature(trackedIds, placement ?? VIEWPORT_ORIGIN)
     if (Math.abs(signature - renderedSignature) > STAGE_MOVE_EPSILON) frameDirty = true
     renderedSignature = signature
-    renderFrame(performance.now())
+    if (canvasOffscreen && !frameDirty) return
+    renderFrame(performance.now(), placement)
     if (stateReceived && !readyAnnounced) {
       readyAnnounced = true
       document.documentElement.classList.add(READY_CLASS)
     }
-  }
+  })
 
   const receiveState = (): void => {
     stateReceived = true
@@ -320,7 +440,13 @@ export async function initPath(canvas: HTMLCanvasElement): Promise<PathApi> {
     if (!canvasOffscreen) frameDirty = true
   })
   intersection.observe(canvas)
-  const resizeObserver = new ResizeObserver(resize)
+  const redraw = (): void => {
+    if (!running || disposed || contextLost || tabHidden) return
+    drawNow()
+  }
+  const resizeObserver = new ResizeObserver(() => {
+    if (resize('observer')) redraw()
+  })
   resizeObserver.observe(canvas)
 
   const onContextLost = (event: Event): void => {
@@ -333,8 +459,9 @@ export async function initPath(canvas: HTMLCanvasElement): Promise<PathApi> {
     environment = createEnvironment(renderer)
     materials.setEnvironment(environment)
     contextLost = false
-    resize()
-    renderFrame(performance.now())
+    resize('restore')
+    frameDirty = true
+    drawNow()
     document.documentElement.classList.add(READY_CLASS)
   }
 
@@ -350,7 +477,9 @@ export async function initPath(canvas: HTMLCanvasElement): Promise<PathApi> {
     if (disposed) return
     disposed = true
     window.clearTimeout(readyFallbackTimer)
+    gsap.ticker.remove(readLayout)
     gsap.ticker.remove(tick)
+    anchor.release()
     window.removeEventListener('resize', markDirty)
     document.removeEventListener('visibilitychange', onVisibility)
     canvas.removeEventListener('webglcontextlost', onContextLost)
@@ -359,6 +488,7 @@ export async function initPath(canvas: HTMLCanvasElement): Promise<PathApi> {
     resizeObserver.disconnect()
     extras.forEach((extra) => extra.dispose())
     tube.dispose()
+    ghost.dispose()
     materials.dispose()
     shadow.dispose()
     nightGlow.dispose()
@@ -381,18 +511,19 @@ export async function initPath(canvas: HTMLCanvasElement): Promise<PathApi> {
     },
     refresh() {
       stages.collect()
-      resize()
+      frameDirty = true
+      if (resize('refresh')) redraw()
     },
     dispose,
   }
 
   try {
-    resize()
+    resize('init')
     await renderer.compileAsync(scene, getCamera())
     await shadow.prepare(renderer)
     await idleSlice()
     if (!env.mobile) nightGlow.warm()
-    renderFrame(performance.now())
+    drawNow()
   } catch (error) {
     dispose()
     throw error
@@ -401,6 +532,8 @@ export async function initPath(canvas: HTMLCanvasElement): Promise<PathApi> {
     dispose()
     throw new Error('path renderer failed on first frame')
   }
+  running = true
+  gsap.ticker.add(readLayout, false, true)
   gsap.ticker.add(tick)
   readyFallbackTimer = window.setTimeout(receiveState, READY_FALLBACK_MS)
   return api

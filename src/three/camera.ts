@@ -25,9 +25,20 @@ export function fitCamera(width: number, height: number): void {
   active.aspect = viewportWidth / viewportHeight
   active.near = Math.max(1, fitDistance - DEPTH_RANGE)
   active.far = fitDistance + DEPTH_RANGE
+  if (active.view) active.view.enabled = false
   active.updateProjectionMatrix()
   active.position.set(0, 0, fitDistance)
   active.lookAt(new Vector3(0, 0, 0))
+  active.updateMatrixWorld()
+}
+
+export function aimCamera(canvasLeft: number, canvasTop: number, screenHeight: number): void {
+  const active = getCamera()
+  const distance = screenHeight / 2 / Math.tan(MathUtils.degToRad(FIELD_OF_VIEW_DEG / 2))
+  active.near = Math.max(1, distance - DEPTH_RANGE)
+  active.far = distance + DEPTH_RANGE
+  active.setViewOffset(viewportWidth, screenHeight, canvasLeft, canvasTop, viewportWidth, viewportHeight)
+  active.position.set(-canvasLeft, viewportHeight / 2 + canvasTop - screenHeight / 2, distance)
   active.updateMatrixWorld()
 }
 
