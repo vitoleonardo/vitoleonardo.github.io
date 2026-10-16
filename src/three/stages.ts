@@ -56,6 +56,11 @@ export class StageRegistry {
     this.rects.clear()
   }
 
+  measureAll(): void {
+    this.rects.clear()
+    this.elements.forEach((element, id) => this.rects.set(id, element.getBoundingClientRect()))
+  }
+
   rect(id: FigureId): DOMRect | undefined {
     let rect = this.rects.get(id)
     if (!rect) {

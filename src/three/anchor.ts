@@ -11,6 +11,14 @@ export interface Placement extends StageOrigin {
   screenHeight: number
 }
 
+interface Layout {
+  hero: DOMRectReadOnly | null
+  page: DOMRectReadOnly
+  screenHeight: number
+  width: number
+  height: number
+}
+
 const ANCHORED_HEIGHT = '200vh'
 
 const height = (span: Span): number => span.bottom - span.top
@@ -36,6 +44,7 @@ export class CanvasAnchor {
   private readonly home: { parent: ParentNode; next: ChildNode | null }
   private host: HTMLElement | null | undefined
   private top = 0
+  private early: Layout | null = null
 
   constructor(private readonly canvas: HTMLCanvasElement) {
     this.home = { parent: canvas.parentNode ?? document.body, next: canvas.nextSibling }
@@ -45,11 +54,18 @@ export class CanvasAnchor {
     return this.host !== undefined
   }
 
+  readLayout(hero: HTMLElement | null): void {
+    this.early = this.read(hero)
+  }
+
   place(stageRects: readonly DOMRectReadOnly[], hero: HTMLElement | null, bleed: number): boolean {
-    const hostRect = (hero ?? document.documentElement).getBoundingClientRect()
-    const screenHeight = window.innerHeight
     const attaching = !this.anchored
     if (attaching) this.attach()
+    const early = this.early
+    this.early = null
+    const layout = !attaching && early && (!hero || early.hero) ? early : this.read(hero)
+    const hostRect = hero ? (layout.hero ?? hero.getBoundingClientRect()) : layout.page
+    const screenHeight = layout.screenHeight
     const sameHost = !attaching && this.host === hero
     let top = sameHost ? this.top : 0
     if (stageRects.length > 0) {
@@ -60,9 +76,9 @@ export class CanvasAnchor {
       }
       const viewport = { top: -hostRect.top, bottom: screenHeight - hostRect.top }
       const bounds = { top: 0, bottom: hostRect.height }
-      top = planTop(cover, viewport, bounds, this.canvas.clientHeight, sameHost ? this.top : null)
+      top = planTop(cover, viewport, bounds, layout.height, sameHost ? this.top : null)
     }
-    this.measured(hostRect, top, screenHeight)
+    this.measured(hostRect, top, layout)
     if (sameHost && top === this.top) return false
     if (!sameHost) {
       if (hero) hero.prepend(this.canvas)
@@ -76,7 +92,9 @@ export class CanvasAnchor {
   }
 
   measure(): Placement {
-    if (this.anchored) this.measured((this.host ?? document.documentElement).getBoundingClientRect(), this.top, window.innerHeight)
+    if (!this.anchored) return this.placement
+    const layout = this.read(this.host ?? null)
+    this.measured(layout.hero ?? layout.page, this.top, layout)
     return this.placement
   }
 
@@ -99,13 +117,23 @@ export class CanvasAnchor {
     style.height = ANCHORED_HEIGHT
   }
 
-  private measured(hostRect: DOMRectReadOnly, top: number, screenHeight: number): void {
+  private read(hero: HTMLElement | null): Layout {
+    return {
+      hero: hero?.getBoundingClientRect() ?? null,
+      page: document.documentElement.getBoundingClientRect(),
+      screenHeight: window.innerHeight,
+      width: this.canvas.clientWidth,
+      height: this.canvas.clientHeight,
+    }
+  }
+
+  private measured(hostRect: DOMRectReadOnly, top: number, layout: Layout): void {
     const placement = this.placement
     placement.left = hostRect.left
     placement.top = hostRect.top + top
-    placement.width = this.canvas.clientWidth
-    placement.height = this.canvas.clientHeight
-    placement.screenHeight = screenHeight
+    placement.width = layout.width
+    placement.height = layout.height
+    placement.screenHeight = layout.screenHeight
   }
 
   private goHome(): void {

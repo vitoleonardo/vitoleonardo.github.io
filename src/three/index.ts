@@ -148,6 +148,7 @@ export async function initPath(canvas: HTMLCanvasElement): Promise<PathApi> {
   let contextLost = false
   let disposed = false
   let running = false
+  let layoutRead = false
   let stateReceived = false
   let readyAnnounced = false
   let readyFallbackTimer = 0
@@ -396,9 +397,17 @@ export async function initPath(canvas: HTMLCanvasElement): Promise<PathApi> {
     renderFrame(performance.now(), currentPlacement())
   }
 
+  const readLayout = (): void => {
+    if (!running || disposed || contextLost || tabHidden || !env.mobile) return
+    stages.measureAll()
+    anchor.readLayout(trackedIds.every((id) => id === 'hero') ? heroSection : null)
+    layoutRead = true
+  }
+
   const tick = timed('three', (): void => {
     if (disposed || contextLost || tabHidden) return
-    stages.forget()
+    if (!layoutRead) stages.forget()
+    layoutRead = false
     trackedIds.length = 0
     trackedIds.push(frame.from)
     if (frame.to !== frame.from) trackedIds.push(frame.to)
@@ -468,6 +477,7 @@ export async function initPath(canvas: HTMLCanvasElement): Promise<PathApi> {
     if (disposed) return
     disposed = true
     window.clearTimeout(readyFallbackTimer)
+    gsap.ticker.remove(readLayout)
     gsap.ticker.remove(tick)
     anchor.release()
     window.removeEventListener('resize', markDirty)
@@ -523,6 +533,7 @@ export async function initPath(canvas: HTMLCanvasElement): Promise<PathApi> {
     throw new Error('path renderer failed on first frame')
   }
   running = true
+  gsap.ticker.add(readLayout, false, true)
   gsap.ticker.add(tick)
   readyFallbackTimer = window.setTimeout(receiveState, READY_FALLBACK_MS)
   return api
