@@ -1,4 +1,6 @@
-export const motionDebug = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('debug') === 'motion'
+const params = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : new URLSearchParams()
+export const motionDebug = params.get('debug') === 'motion'
+export const preserveBuffer = motionDebug && params.get('preserve') === '1'
 
 export interface ProbeSink {
   event(type: string, detail: Record<string, unknown>): void

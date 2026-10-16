@@ -1,7 +1,7 @@
 import { gsap } from 'gsap'
 import { Mesh, NoToneMapping, PMREMGenerator, Scene, SRGBColorSpace, type Texture, Vector3, WebGLRenderer } from 'three'
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js'
-import { motionDebug, probeEvent, timed } from '../debug/probe'
+import { motionDebug, preserveBuffer, probeEvent, timed } from '../debug/probe'
 import { env } from '../env'
 import { HERO_IMPACT } from '../figures/shapes'
 import { copyFrame, createFrame, sameFrame } from '../frame'
@@ -69,7 +69,7 @@ function isFigureId(value: string): value is FigureId {
 }
 
 export async function initPath(canvas: HTMLCanvasElement): Promise<PathApi> {
-  const renderer = new WebGLRenderer({ canvas, antialias: true, alpha: true, powerPreference: 'high-performance' })
+  const renderer = new WebGLRenderer({ canvas, antialias: true, alpha: true, powerPreference: 'high-performance', preserveDrawingBuffer: preserveBuffer })
   let shaderFailed = false
   renderer.debug.onShaderError = () => {
     shaderFailed = true
