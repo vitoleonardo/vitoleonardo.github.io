@@ -1,6 +1,7 @@
 import { gsap } from 'gsap'
 import { Mesh, NoToneMapping, PMREMGenerator, Scene, SRGBColorSpace, type Texture, Vector3, WebGLRenderer } from 'three'
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js'
+import { motionDebug, probeEvent, timed } from '../debug/probe'
 import { env } from '../env'
 import { HERO_IMPACT } from '../figures/shapes'
 import { copyFrame, createFrame, sameFrame } from '../frame'
@@ -255,6 +256,7 @@ export async function initPath(canvas: HTMLCanvasElement): Promise<PathApi> {
     if (frameDirty) {
       pathVisible = rebuildPath()
       frameDirty = false
+      if (motionDebug) probeEvent('rebuild')
     }
     tubeMesh.visible = pathVisible
     capsMesh.visible = pathVisible
@@ -289,7 +291,7 @@ export async function initPath(canvas: HTMLCanvasElement): Promise<PathApi> {
   }
 
   const trackedIds: FigureId[] = []
-  const tick = (): void => {
+  const tick = timed('three', (): void => {
     if (disposed || contextLost || tabHidden || canvasOffscreen) return
     trackedIds.length = 0
     trackedIds.push(frame.from)
@@ -303,7 +305,7 @@ export async function initPath(canvas: HTMLCanvasElement): Promise<PathApi> {
       readyAnnounced = true
       document.documentElement.classList.add(READY_CLASS)
     }
-  }
+  })
 
   const receiveState = (): void => {
     stateReceived = true

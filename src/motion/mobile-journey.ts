@@ -1,5 +1,6 @@
 import { gsap } from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
+import { motionDebug, probeEvent, timed } from '../debug/probe'
 import { TUNE } from '../tune'
 import type { ProgressSource } from './context'
 import type { PathPort } from './path-port'
@@ -40,15 +41,19 @@ export function bindMobileJourney(path: PathPort): () => void {
     return () => trigger.progress
   })
 
-  const follow = (): void => {
+  const score = (index: number, seconds: number): void => {
+    path.score(index, seconds, MOBILE_TIMING)
+    if (motionDebug) probeEvent('score', { scene: index, seconds })
+  }
+  const follow = timed('journey', (): void => {
     for (let index = entries.length - 1; index > 0; index--) {
       const progress = entries[index]?.() ?? 0
       if (progress <= SETTLED) continue
-      path.score(index, Math.min(1, progress) * ENTRY_SHARE * SCENES[index].seconds, MOBILE_TIMING)
+      score(index, Math.min(1, progress) * ENTRY_SHARE * SCENES[index].seconds)
       return
     }
-    path.score(0, heroDrop.value * SCENES[0].seconds, MOBILE_TIMING)
-  }
+    score(0, heroDrop.value * SCENES[0].seconds)
+  })
   gsap.ticker.add(follow)
   follow()
 

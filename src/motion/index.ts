@@ -2,6 +2,7 @@ import { gsap } from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
 import { SplitText } from 'gsap/SplitText'
 import type Lenis from 'lenis'
+import { motionDebug, probeEvent, timed } from '../debug/probe'
 import { pathReady } from '../path-bridge'
 import { bindAnchorNavigation, jumpToHash } from './anchors'
 import type { MotionContext, MotionMode, SectionMotion } from './context'
@@ -62,7 +63,7 @@ function runMode(mode: MotionMode, path: PathPort, sections: SectionMotion[]): (
     } else {
       const sections = sceneSections()
       if (ground) {
-        const followSections = (): void => ground.follow(sections)
+        const followSections = timed('ground', (): void => ground.follow(sections))
         gsap.ticker.add(followSections)
         cleanups.push(() => gsap.ticker.remove(followSections))
       }
@@ -103,7 +104,10 @@ export function initMotion(): void {
   ScrollTrigger.config({ ignoreMobileResize: true, autoRefreshEvents: 'visibilitychange,DOMContentLoaded,resize' })
 
   const path = new PathPort()
-  ScrollTrigger.addEventListener('refresh', () => path.refresh())
+  ScrollTrigger.addEventListener('refresh', () => {
+    if (motionDebug) probeEvent('scrolltrigger-refresh')
+    path.refresh()
+  })
   void pathReady.then((api) => {
     if (api) path.attach(api)
   })

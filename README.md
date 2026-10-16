@@ -73,7 +73,12 @@ The tests cover the pure core: every scene boundary hands over without a visible
 | `npm run capture` | Screenshots the client sites shown in the frontend stop into `public/work/` |
 | `node scripts/record-motion.mjs` | Records a steady scroll through the site to `docs/motion/recording.webm` |
 | `node scripts/measure-frames.mjs` | Scrolls the stack and reports frame intervals and long tasks |
+| `node scripts/record-mobile.mjs` | Records a scripted touch gesture in phone emulation to `docs/motion/raw/<LABEL>.mp4` and reports touch event latency; `MOTION_LOG=1` also saves the `?debug=motion` log |
+| `node scripts/blank-frame-check.mjs` | Changes the phone viewport height eight times, like the Safari toolbar does, and fails if the path canvas shows a blank frame |
+| `python3 scripts/motion-timing/sync_check.py <video>` | Checks a phone screen recording for blank canvas frames, a frozen tube, a tube moving on its own and page jumps |
 | `scripts/motion-timing/` | Python tools that measure beat timing in the reference video and model the site's tempo (see its `requirements.txt`) |
+
+The browser scripts expect `npm run preview` to be running and use Playwright's Chromium; set `CHROMIUM_PATH` to use another build. Open any page with `?debug=motion` to log per-frame scroll, canvas and timing data; the overlay's copy button puts the log on the clipboard as JSON.
 
 ## Deployment
 

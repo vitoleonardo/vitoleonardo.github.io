@@ -5,8 +5,11 @@ import './styles/tokens.css'
 import './styles/base.css'
 import './styles/sections.css'
 import { env } from './env'
+import { motionDebug } from './debug/probe'
 import { resolvePath } from './path-bridge'
 import { initI18n } from './i18n'
+
+if (motionDebug) void import('./debug/motion-log').then((module) => module.startMotionLog())
 
 initI18n()
 

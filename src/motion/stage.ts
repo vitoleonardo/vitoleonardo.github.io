@@ -1,6 +1,7 @@
 import { gsap } from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
 import type Lenis from 'lenis'
+import { timed } from '../debug/probe'
 import { between, clamp01, smooth } from '../math'
 import { TUNE } from '../tune'
 import type { GroundLayers } from './ground'
@@ -199,7 +200,7 @@ export function createStage(lenis: Lenis | null, path: PathPort, ground: GroundL
   }
 
   const position = (): number => master.time()
-  const sync = (): void => {
+  const sync = timed('stage', (): void => {
     const located = locate(position())
     path.score(located.index, located.seconds, DESKTOP_TIMING)
     ground?.set(groundPosition(located.index, located.seconds, located.progress))
@@ -210,7 +211,7 @@ export function createStage(lenis: Lenis | null, path: PathPort, ground: GroundL
       litApplied = lit
       lights.forEach((light, order) => light.classList.toggle(LIT_CLASS, order < lit))
     }
-  }
+  })
   gsap.ticker.add(sync)
   sync()
 
@@ -236,7 +237,7 @@ export function createStage(lenis: Lenis | null, path: PathPort, ground: GroundL
     lastScrollAt = performance.now()
   }
   lenis?.on('scroll', onScroll)
-  const maybeSnap = (): void => {
+  const maybeSnap = timed('snap', (): void => {
     if (!lenis) return
     const now = performance.now()
     if (now < snapUntil || lenis.isScrolling || now - lastScrollAt < SNAP_IDLE_MS) return
@@ -254,7 +255,7 @@ export function createStage(lenis: Lenis | null, path: PathPort, ground: GroundL
     const seconds = Math.min(SNAP_SECONDS.max, SNAP_SECONDS.min + distance * SNAP_SECONDS.perScene)
     snapUntil = now + seconds * 1000 + SNAP_GUARD_MS
     snapScrollTo(lenis, scrollFor(target), seconds)
-  }
+  })
   gsap.ticker.add(maybeSnap)
 
   const onFocusIn = (event: FocusEvent): void => {

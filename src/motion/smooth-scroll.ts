@@ -1,6 +1,7 @@
 import { gsap } from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
 import Lenis from 'lenis'
+import { timed } from '../debug/probe'
 import { TUNE } from '../tune'
 
 export interface SmoothScroll {
@@ -12,7 +13,7 @@ export function createSmoothScroll(): SmoothScroll {
   const lenis = new Lenis({ lerp: TUNE.lenisLerp, autoRaf: false, anchors: false })
   const onScroll = (): void => ScrollTrigger.update()
   lenis.on('scroll', onScroll)
-  const advance = (time: number): void => lenis.raf(time * 1000)
+  const advance = timed('lenis', (time: number): void => lenis.raf(time * 1000))
   gsap.ticker.add(advance, false, true)
   return {
     lenis,
