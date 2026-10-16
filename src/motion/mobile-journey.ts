@@ -52,7 +52,6 @@ export function bindMobileJourney(path: PathPort): () => void {
         start: 'top top',
         end: () => `+=${held.hold.offsetHeight}`,
         scrub: TUNE.heroScrub,
-        invalidateOnRefresh: true,
       },
     })
     timeline.to(heroDrop, { value: 1, duration: 1 }, 0)
