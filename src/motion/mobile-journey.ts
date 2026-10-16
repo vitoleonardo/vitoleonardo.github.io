@@ -3,13 +3,12 @@ import { ScrollTrigger } from 'gsap/ScrollTrigger'
 import { motionDebug, probeEvent, timed } from '../debug/probe'
 import { TUNE } from '../tune'
 import type { ProgressSource } from './context'
+import { Chase, journeyScene, journeyTarget } from './journey'
 import type { PathPort } from './path-port'
 import { MOBILE_TIMING, SCENES } from './score'
 
 const HERO_PIN_VIEWPORTS = 1.2
-const ENTRY_SHARE = 0.8
 const HERO_COPY_LIFT = 40
-const SETTLED = 1e-4
 
 interface HeroHold {
   runway: HTMLElement
@@ -42,7 +41,7 @@ function holdHero(hero: HTMLElement): HeroHold {
 export function bindMobileJourney(path: PathPort): () => void {
   const hero = document.getElementById('hero')
   const triggers: ScrollTrigger[] = []
-  const heroDrop = { value: 0 }
+  let heroTrigger: ScrollTrigger | undefined
   const held = hero ? holdHero(hero) : null
   if (hero && held) {
     const timeline = gsap.timeline({
@@ -54,9 +53,9 @@ export function bindMobileJourney(path: PathPort): () => void {
         scrub: TUNE.heroScrub,
       },
     })
-    timeline.to(heroDrop, { value: 1, duration: 1 }, 0)
     timeline.to(Array.from(hero.querySelectorAll('.hero-copy, .hero-actions')), { y: -HERO_COPY_LIFT, opacity: 0.85, duration: 0.4, ease: 'power1.inOut' }, 0.6)
-    if (timeline.scrollTrigger) triggers.push(timeline.scrollTrigger)
+    heroTrigger = timeline.scrollTrigger
+    if (heroTrigger) triggers.push(heroTrigger)
   }
 
   const entries: Array<ProgressSource | null> = SCENES.map((scene, index) => {
@@ -68,24 +67,35 @@ export function bindMobileJourney(path: PathPort): () => void {
     return () => trigger.progress
   })
 
-  const score = (index: number, seconds: number): void => {
-    path.score(index, seconds, MOBILE_TIMING)
-    if (motionDebug) probeEvent('score', { scene: index, seconds })
+  const progresses = entries.map(() => 0)
+  const target = (): number => {
+    entries.forEach((entry, index) => (progresses[index] = entry?.() ?? 0))
+    return journeyTarget(progresses, heroTrigger?.progress ?? 0)
   }
-  const follow = timed('journey', (): void => {
-    for (let index = entries.length - 1; index > 0; index--) {
-      const progress = entries[index]?.() ?? 0
-      if (progress <= SETTLED) continue
-      score(index, Math.min(1, progress) * ENTRY_SHARE * SCENES[index].seconds)
-      return
-    }
-    score(0, heroDrop.value * SCENES[0].seconds)
+  // Native touch scrolling can cross a whole morph in two or three frames. The tube follows
+  // the scroll the way the desktop tube does (Lenis, then the track scrub), so every morph
+  // plays out, while the page itself keeps native scrolling.
+  const chase = new Chase(TUNE.lenisLerp, TUNE.trackScrub, gsap.parseEase('expo'))
+  const score = (position: number): void => {
+    const scene = journeyScene(position)
+    path.score(scene.index, scene.seconds, MOBILE_TIMING)
+    if (motionDebug) probeEvent('score', { scene: scene.index, seconds: scene.seconds, position })
+  }
+  const follow = timed('journey', (time: number): void => {
+    score(chase.follow(target(), time))
   })
+  const settle = (): void => {
+    const position = target()
+    chase.jump(position)
+    score(position)
+  }
   gsap.ticker.add(follow)
-  follow()
+  ScrollTrigger.addEventListener('refresh', settle)
+  settle()
 
   return () => {
     gsap.ticker.remove(follow)
+    ScrollTrigger.removeEventListener('refresh', settle)
     triggers.forEach((trigger) => trigger.kill())
     held?.release()
   }
