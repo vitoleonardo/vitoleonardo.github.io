@@ -14,7 +14,10 @@ function detectWebgl(): boolean {
   }
 }
 
+const morphVariant = new URLSearchParams(window.location.search).get('morph')
+
 export const env = {
+  morph: morphVariant === 'a' || morphVariant === 'b' ? morphVariant : null,
   reducedMotion: reducedMotionQuery.matches,
   webgl: detectWebgl(),
   touch: window.matchMedia('(pointer: coarse)').matches || navigator.maxTouchPoints > 0,
@@ -27,6 +30,7 @@ root.classList.add('js')
 root.classList.toggle('rm', env.reducedMotion)
 root.classList.toggle('touch', env.touch)
 root.classList.toggle('no-webgl', !env.webgl)
+root.classList.toggle('morph-b', env.morph === 'b')
 
 reducedMotionQuery.addEventListener('change', (event) => {
   env.reducedMotion = event.matches

@@ -4,10 +4,13 @@ import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js'
 import { motionDebug, preserveBuffer, probeEvent, timed } from '../debug/probe'
 import { env } from '../env'
 import { HERO_IMPACT } from '../figures/shapes'
+import { sineInOut } from '../math'
 import { copyFrame, createFrame, sameFrame } from '../frame'
 import type { FigureId, PathApi } from '../types'
 import { AgentNodes } from './agent-nodes'
+import { CanvasAnchor, type Placement } from './anchor'
 import { beatClock } from './beat-clock'
+import { NO_BUFFER, resizedBuffer } from './buffer'
 import { aimCamera, createCamera, fitCamera, getCamera, getViewport, pageToWorld } from './camera'
 import type { FrameContext, PathExtra } from './extras'
 import { FIGURE_IDS, type Figure, type FigureVariant, getFigure, PATH_POINT_COUNT, sampleAllFigures } from './figures'
@@ -15,8 +18,6 @@ import { createPathMaterials, NIGHT_EMISSIVE_MAX } from './materials'
 import { BLOOM_STRENGTH, NightGlow } from './night'
 import { RocketExtra } from './rocket'
 import { ContactShadow, SHADOW_LAYER, type ShadowCaster } from './shadow'
-import { CanvasAnchor, type Placement } from './anchor'
-import { NO_BUFFER, resizedBuffer } from './buffer'
 import { designToPage, designToPageStrict, type StageFit, StageRegistry, VIEWPORT_ORIGIN } from './stages'
 import { DataStrands } from './strands'
 import { SunExtra } from './sun'
@@ -47,6 +48,7 @@ const READY_CLASS = 'three-ready'
 const IDLE_SLICE_TIMEOUT_MS = 120
 const READY_FALLBACK_MS = 700
 const ANCHOR_BLEED = 160
+const DRAW_ON_FIGURES = new Set<FigureId>(['frontend', 'backend', 'cloud', 'data', 'ai-products', 'ai-coding', 'teaching'])
 
 function createEnvironment(renderer: WebGLRenderer): Texture {
   const pmrem = new PMREMGenerator(renderer)
@@ -100,6 +102,15 @@ export async function initPath(canvas: HTMLCanvasElement): Promise<PathApi> {
     mesh.layers.enable(SHADOW_LAYER)
   }
   scene.add(tubeMesh, capsMesh)
+  const ghost = new PathTube(PATH_POINT_COUNT, RADIAL_SEGMENTS)
+  const ghostMesh = new Mesh(ghost.geometry, materials.tube)
+  const ghostCapsMesh = new Mesh(ghost.capsGeometry, materials.tube)
+  for (const mesh of [ghostMesh, ghostCapsMesh]) {
+    mesh.frustumCulled = false
+    mesh.visible = false
+    mesh.layers.enable(SHADOW_LAYER)
+  }
+  scene.add(ghostMesh, ghostCapsMesh)
 
   const shadow = new ContactShadow()
   const nightGlow = new NightGlow(renderer)
@@ -108,6 +119,8 @@ export async function initPath(canvas: HTMLCanvasElement): Promise<PathApi> {
   const shadowCasters: ShadowCaster[] = [
     { mesh: tubeMesh, opacity: () => 1 },
     { mesh: capsMesh, opacity: () => 1 },
+    { mesh: ghostMesh, opacity: () => 1 },
+    { mesh: ghostCapsMesh, opacity: () => 1 },
   ]
   extras.forEach((extra) => {
     scene.add(extra.object)
@@ -119,11 +132,15 @@ export async function initPath(canvas: HTMLCanvasElement): Promise<PathApi> {
   const smoothed = new Float32Array(PATH_POINT_COUNT * 3)
   const scratch = new Float32Array(PATH_POINT_COUNT * 3)
   const worldPoints = new Float32Array(PATH_POINT_COUNT * 3)
+  const ghostWorld = new Float32Array(PATH_POINT_COUNT * 3)
   const ringRadius = new Float32Array(PATH_POINT_COUNT).fill(1)
+  const radiusScratch = new Float32Array(PATH_POINT_COUNT)
+  const arcs = new Float32Array(PATH_POINT_COUNT)
   const page = { x: 0, y: 0 }
   const world = new Vector3()
   let frameDirty = true
   let pathVisible = false
+  let ghostVisible = false
   let radius = TUBE_RADIUS_DESIGN
   let pathScale = 1
   let tabHidden = document.hidden
@@ -210,12 +227,59 @@ export async function initPath(canvas: HTMLCanvasElement): Promise<PathApi> {
     for (let i = 0; i < count * 3; i++) pagePoints[i] += (smoothed[i] - pagePoints[i]) * weight
   }
 
+  const toWorldPoints = (source: Float32Array, out: Float32Array): void => {
+    for (let i = 0; i < PATH_POINT_COUNT; i++) {
+      pageToWorld(source[i * 3], source[i * 3 + 1], world, source[i * 3 + 2])
+      out[i * 3] = world.x
+      out[i * 3 + 1] = world.y
+      out[i * 3 + 2] = world.z
+    }
+  }
+
+  const keepDrawnShare = (share: number): void => {
+    const count = PATH_POINT_COUNT
+    arcs[0] = 0
+    for (let i = 1; i < count; i++) {
+      const dx = pagePoints[i * 3] - pagePoints[i * 3 - 3]
+      const dy = pagePoints[i * 3 + 1] - pagePoints[i * 3 - 2]
+      const dz = pagePoints[i * 3 + 2] - pagePoints[i * 3 - 1]
+      arcs[i] = arcs[i - 1] + Math.hypot(dx, dy, dz)
+    }
+    scratch.set(pagePoints)
+    radiusScratch.set(ringRadius)
+    let segment = 1
+    for (let i = 0; i < count; i++) {
+      const target = (arcs[count - 1] * share * i) / (count - 1)
+      while (segment < count - 1 && arcs[segment] < target) segment++
+      const span = arcs[segment] - arcs[segment - 1]
+      const t = span > 0 ? Math.min(1, Math.max(0, (target - arcs[segment - 1]) / span)) : 0
+      for (let axis = 0; axis < 3; axis++) {
+        const a = scratch[(segment - 1) * 3 + axis]
+        pagePoints[i * 3 + axis] = a + (scratch[segment * 3 + axis] - a) * t
+      }
+      ringRadius[i] = radiusScratch[segment - 1] + (radiusScratch[segment] - radiusScratch[segment - 1]) * t
+    }
+  }
+
   const rebuildPath = (): boolean => {
     const from = figureOf(frame.from)
     const to = figureOf(frame.to)
     const fromFit = fitOf(frame.from)
     const toFit = fitOf(frame.to)
     const morph = frame.from === frame.to ? 0 : Math.min(1, Math.max(0, frame.morph))
+    ghostVisible = false
+    if (env.morph === 'a' && env.mobile && morph > 0 && DRAW_ON_FIGURES.has(frame.to)) {
+      radius = TUBE_RADIUS_MOBILE
+      pathScale = toFit.scale
+      mapFigure(from, frame.from, fromFit, scratch, frame.heroGrow)
+      toWorldPoints(scratch, ghostWorld)
+      ghostVisible = ghost.update(ghostWorld, radius, from.radius)
+      mapFigure(to, frame.to, toFit, pagePoints, frame.heroGrow)
+      ringRadius.set(to.radius)
+      keepDrawnShare(sineInOut(morph))
+      toWorldPoints(pagePoints, worldPoints)
+      return tube.update(worldPoints, radius, ringRadius)
+    }
     mapFigure(from, frame.from, fromFit, pagePoints, frame.heroGrow)
     if (morph > 0) {
       mapFigure(to, frame.to, toFit, scratch, frame.heroGrow)
@@ -273,6 +337,9 @@ export async function initPath(canvas: HTMLCanvasElement): Promise<PathApi> {
     }
     tubeMesh.visible = pathVisible
     capsMesh.visible = pathVisible
+    ghostMesh.visible = ghostVisible
+    ghostCapsMesh.visible = ghostVisible
+    context.pathWorld = ghostVisible && frame.from === 'data' ? ghostWorld : worldPoints
     updateUniforms(nowMs, seconds)
 
     context.time = seconds
@@ -411,6 +478,7 @@ export async function initPath(canvas: HTMLCanvasElement): Promise<PathApi> {
     resizeObserver.disconnect()
     extras.forEach((extra) => extra.dispose())
     tube.dispose()
+    ghost.dispose()
     materials.dispose()
     shadow.dispose()
     nightGlow.dispose()

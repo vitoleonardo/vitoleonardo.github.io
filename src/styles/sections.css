@@ -50,6 +50,20 @@
     z-index: -1;
     background: var(--ground);
   }
+
+  .morph-b.three-ready:not(.rm) #stack .panel > :is(.bar-top, .panel-copy, .proof-row, .bar-bottom) {
+    background: var(--ground);
+    box-shadow: 0 0 0 100vmax var(--ground);
+    clip-path: inset(-12px -100vmax);
+  }
+
+  .morph-b.three-ready:not(.rm) #stack .panel > .bar-top {
+    clip-path: inset(-20px -100vmax -12px);
+  }
+
+  .morph-b.three-ready:not(.rm) #stack .panel > .bar-bottom {
+    clip-path: inset(-12px -100vmax -20px);
+  }
 }
 
 .section-index {
