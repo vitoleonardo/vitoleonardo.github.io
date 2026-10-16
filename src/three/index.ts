@@ -124,6 +124,7 @@ export async function initPath(canvas: HTMLCanvasElement): Promise<PathApi> {
   let canvasOffscreen = false
   let contextLost = false
   let disposed = false
+  let running = false
   let stateReceived = false
   let readyAnnounced = false
   let readyFallbackTimer = 0
@@ -152,16 +153,22 @@ export async function initPath(canvas: HTMLCanvasElement): Promise<PathApi> {
     pathCount: PATH_POINT_COUNT,
   }
 
-  const resize = (): void => {
+  const bufferSize = { width: 0, height: 0, pixelRatio: 0 }
+  const resize = (cause: string): boolean => {
     const width = canvas.clientWidth || window.innerWidth
     const height = canvas.clientHeight || window.innerHeight
     const pixelRatio = Math.min(window.devicePixelRatio || 1, env.touch ? DPR_CAP_TOUCH : DPR_CAP_DESKTOP)
-    renderer.setPixelRatio(pixelRatio)
-    renderer.setSize(width, height, false)
+    if (width === bufferSize.width && height === bufferSize.height && pixelRatio === bufferSize.pixelRatio) return false
+    bufferSize.width = width
+    bufferSize.height = height
+    bufferSize.pixelRatio = pixelRatio
+    renderer.setDrawingBufferSize(width, height, pixelRatio)
     fitCamera(width, height)
     shadow.setSize(width, height)
     nightGlow.setSize(width, height, pixelRatio)
     frameDirty = true
+    if (motionDebug) probeEvent('resize', { cause, width, height, pixelRatio })
+    return true
   }
 
   const mapFigure = (figure: Figure, id: FigureId, fit: StageFit, out: Float32Array, grow: number): void => {
@@ -322,7 +329,13 @@ export async function initPath(canvas: HTMLCanvasElement): Promise<PathApi> {
     if (!canvasOffscreen) frameDirty = true
   })
   intersection.observe(canvas)
-  const resizeObserver = new ResizeObserver(resize)
+  const redraw = (): void => {
+    if (!running || disposed || contextLost || tabHidden) return
+    renderFrame(performance.now())
+  }
+  const resizeObserver = new ResizeObserver(() => {
+    if (resize('observer')) redraw()
+  })
   resizeObserver.observe(canvas)
 
   const onContextLost = (event: Event): void => {
@@ -335,7 +348,8 @@ export async function initPath(canvas: HTMLCanvasElement): Promise<PathApi> {
     environment = createEnvironment(renderer)
     materials.setEnvironment(environment)
     contextLost = false
-    resize()
+    resize('restore')
+    frameDirty = true
     renderFrame(performance.now())
     document.documentElement.classList.add(READY_CLASS)
   }
@@ -383,13 +397,14 @@ export async function initPath(canvas: HTMLCanvasElement): Promise<PathApi> {
     },
     refresh() {
       stages.collect()
-      resize()
+      frameDirty = true
+      if (resize('refresh')) redraw()
     },
     dispose,
   }
 
   try {
-    resize()
+    resize('init')
     await renderer.compileAsync(scene, getCamera())
     await shadow.prepare(renderer)
     await idleSlice()
@@ -403,6 +418,7 @@ export async function initPath(canvas: HTMLCanvasElement): Promise<PathApi> {
     dispose()
     throw new Error('path renderer failed on first frame')
   }
+  running = true
   gsap.ticker.add(tick)
   readyFallbackTimer = window.setTimeout(receiveState, READY_FALLBACK_MS)
   return api
