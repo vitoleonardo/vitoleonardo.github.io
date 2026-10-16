@@ -11,18 +11,46 @@ const ENTRY_SHARE = 0.8
 const HERO_COPY_LIFT = 40
 const SETTLED = 1e-4
 
+interface HeroHold {
+  runway: HTMLElement
+  hold: HTMLElement
+  release(): void
+}
+
+function holdHero(hero: HTMLElement): HeroHold {
+  const runway = document.createElement('div')
+  const hold = document.createElement('div')
+  hold.setAttribute('aria-hidden', 'true')
+  hold.style.height = `${HERO_PIN_VIEWPORTS * 100}vh`
+  hold.style.height = `${HERO_PIN_VIEWPORTS * 100}svh`
+  hero.before(runway)
+  runway.append(hero, hold)
+  hero.style.position = 'sticky'
+  hero.style.top = '0'
+  return {
+    runway,
+    hold,
+    release() {
+      hero.style.position = ''
+      hero.style.top = ''
+      runway.before(hero)
+      runway.remove()
+    },
+  }
+}
+
 export function bindMobileJourney(path: PathPort): () => void {
   const hero = document.getElementById('hero')
   const triggers: ScrollTrigger[] = []
   const heroDrop = { value: 0 }
-  if (hero) {
+  const held = hero ? holdHero(hero) : null
+  if (hero && held) {
     const timeline = gsap.timeline({
       defaults: { ease: 'none' },
       scrollTrigger: {
-        trigger: hero,
+        trigger: held.runway,
         start: 'top top',
-        end: () => `+=${window.innerHeight * HERO_PIN_VIEWPORTS}`,
-        pin: true,
+        end: () => `+=${held.hold.offsetHeight}`,
         scrub: TUNE.heroScrub,
         invalidateOnRefresh: true,
       },
@@ -60,5 +88,6 @@ export function bindMobileJourney(path: PathPort): () => void {
   return () => {
     gsap.ticker.remove(follow)
     triggers.forEach((trigger) => trigger.kill())
+    held?.release()
   }
 }
