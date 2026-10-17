@@ -67,7 +67,7 @@ export const de: Content = {
       title: 'Frontend',
       indexTitle: 'Frontend',
       indexTools: 'TypeScript, React, Next.js, Angular, Tailwind',
-      tools: ['TypeScript', 'React', 'Next.js', 'Angular', 'Tailwind CSS'],
+      tools: ['TypeScript, JavaScript', 'React, Next.js', 'Angular, RxJS, NgRx', 'Tailwind CSS, Sass, HTML5', 'Nx-Monorepos'],
       proof: [
         { title: 'Fusion-Festival-Plattform', detail: 'Freelance Full-Stack, seit 2025' },
         { title: 'Shop für Studienbedarf', detail: 'Tech Lead bei anue, Next.js 14, 2024 bis 2025' },
@@ -105,7 +105,8 @@ export const de: Content = {
       tools: [
         'AWS: Lambda, Step Functions, S3, SQS, CloudFront, Route 53, Glue, Athena, QuickSight, Textract',
         'Terraform, Infrastructure as Code',
-        'Docker, GitHub Actions, CI/CD',
+        'Docker, GitHub Actions, GitLab, CI/CD',
+        'Vercel',
       ],
       proof: [
         {
@@ -125,7 +126,7 @@ export const de: Content = {
       title: 'Daten und Integration',
       indexTitle: 'Daten und Integration',
       indexTools: 'Echtzeit-Sync, Pipelines, Alerting',
-      tools: ['Echtzeit-Sync-Pipelines', 'Drittanbieter-APIs', 'Alerting und Monitoring'],
+      tools: ['Echtzeit-Sync-Pipelines', 'Drittanbieter-APIs, Airtable', 'Alerting und Monitoring'],
       proof: [
         {
           title: 'Ghost-Kitchen-Netzwerk',
@@ -151,7 +152,7 @@ export const de: Content = {
       tools: [
         'Python, LangChain',
         'RAG, Multi-Agent-Systeme',
-        'MCP, Evaluierungs-Harnesses',
+        'MCP, A2A, LiteLLM, Evaluierungs-Harnesses',
         'BERT, Computer Vision',
       ],
       proof: [
@@ -180,7 +181,7 @@ export const de: Content = {
       indexTitle: 'KI für Coding',
       indexTools: 'Claude Code, agentischer Workflow, Quality Gates',
       tools: [
-        'Claude Code, GitHub Copilot',
+        'Claude Code, Cursor, GitHub Copilot',
         'Agentischer Engineering-Workflow',
         'Kodifizierte Regeln, Constraints, Quality Gates',
       ],

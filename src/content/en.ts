@@ -67,7 +67,7 @@ export const en: Content = {
       title: 'Frontend',
       indexTitle: 'Frontend',
       indexTools: 'TypeScript, React, Next.js, Angular, Tailwind',
-      tools: ['TypeScript', 'React', 'Next.js', 'Angular', 'Tailwind CSS'],
+      tools: ['TypeScript, JavaScript', 'React, Next.js', 'Angular, RxJS, NgRx', 'Tailwind CSS, Sass, HTML5', 'Nx monorepos'],
       proof: [
         { title: 'Fusion Festival platform', detail: 'Freelance full-stack, since 2025' },
         { title: 'Student-supplies shop', detail: 'Tech lead at anue, Next.js 14, 2024 to 2025' },
@@ -105,7 +105,8 @@ export const en: Content = {
       tools: [
         'AWS: Lambda, Step Functions, S3, SQS, CloudFront, Route 53, Glue, Athena, QuickSight, Textract',
         'Terraform, infrastructure as code',
-        'Docker, GitHub Actions, CI/CD',
+        'Docker, GitHub Actions, GitLab, CI/CD',
+        'Vercel',
       ],
       proof: [
         {
@@ -125,7 +126,7 @@ export const en: Content = {
       title: 'Data and integration',
       indexTitle: 'Data and integration',
       indexTools: 'Real-time sync, pipelines, alerting',
-      tools: ['Real-time sync pipelines', 'Third-party APIs', 'Alerting and monitoring'],
+      tools: ['Real-time sync pipelines', 'Third-party APIs, Airtable', 'Alerting and monitoring'],
       proof: [
         {
           title: 'Ghost-kitchen network',
@@ -145,7 +146,7 @@ export const en: Content = {
       title: 'AI in products',
       indexTitle: 'AI in products',
       indexTools: 'RAG, LangChain, agents, MCP, evals',
-      tools: ['Python, LangChain', 'RAG, multi-agent systems', 'MCP, evaluation harnesses', 'BERT, computer vision'],
+      tools: ['Python, LangChain', 'RAG, multi-agent systems', 'MCP, A2A, LiteLLM, evaluation harnesses', 'BERT, computer vision'],
       proof: [
         {
           title: 'LLM and agent tooling',
@@ -169,7 +170,7 @@ export const en: Content = {
       indexTitle: 'AI for coding',
       indexTools: 'Claude Code, agentic workflow, quality gates',
       tools: [
-        'Claude Code, GitHub Copilot',
+        'Claude Code, Cursor, GitHub Copilot',
         'Agentic engineering workflow',
         'Codified rules, constraints, quality gates',
       ],
