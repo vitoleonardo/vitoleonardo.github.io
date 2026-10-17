@@ -24,7 +24,7 @@ export const en: Content = {
   meta: {
     title: 'Vito Krawutschke · Full-stack and AI engineer, Cologne',
     description:
-      'Full-stack and AI engineer in Cologne. I build with AI, ship it to production, and teach teams to do the same. Available now, remote or hybrid.',
+      'Full-stack engineer in Cologne. I build cloud-native apps with AI built in, and teach teams how. Available now, remote or hybrid.',
     lang: 'en',
   },
   nav: {
@@ -40,17 +40,17 @@ export const en: Content = {
     pill: 'Available now',
     pillDetail: 'Remote, international or hybrid in Cologne / NRW',
     eyebrow: 'Vito Krawutschke · Full-stack and AI engineer, Cologne',
-    headline: 'I build web apps and AI products, and take them to production.',
+    headline: 'I build full-stack, cloud-native apps with AI, and teach teams how.',
     proofPoints: [
-      { value: '70k+', label: 'guests on the Fusion Festival platform' },
-      { value: '1 to 2', label: 'days per feature with AI agents' },
-      { value: '20 of 20', label: 'bootcamp students shipped a running app' },
+      { value: 'Startups to DAX', label: 'Cloud-native apps on AWS and Terraform' },
+      { value: 'AI built in', label: 'RAG, agents and LLM features in live products' },
+      { value: 'Every student', label: 'I taught shipped a web app with agentic coding' },
     ],
     buttons: {
       primary: { label: 'See the stack', href: '#index' },
       secondary: { label: 'Get in touch', href: '#say-hi' },
     },
-    footer: 'Cologne · German, English, Spanish, Portuguese',
+    footer: 'This tower is my 3D web training ground, built with three.js.',
   },
   index: {
     caption: 'Section / seven floors',
@@ -215,7 +215,7 @@ export const en: Content = {
     caption: 'Roof / About',
     heading: 'When the work is done, ',
     headingEmphasis: 'the music starts.',
-    text: "I'm Vito. Computer science at HHU Düsseldorf with a focus on machine learning, then full-stack work for startups and DAX-listed companies. Years in bars and restaurants taught me to stay calm under pressure. Today I lead volunteer kitchens at music festivals, cooking for 500 people with teams of 8 to 14.",
+    text: "I'm Vito. Computer science at HHU Düsseldorf with a focus on machine learning, then full-stack work for startups and DAX-listed companies. Years in bars and restaurants taught me to stay calm under pressure. Today I lead volunteer kitchens at music festivals, cooking for 500 people with teams of 8 to 14. Right now I'm training to build 3D animated websites like this one. It's fun, and it shows my creative side.",
     facts: [
       { label: 'Languages', value: 'German, English, Spanish, Portuguese' },
       { label: 'Culture', value: 'Art, house music, festivals' },

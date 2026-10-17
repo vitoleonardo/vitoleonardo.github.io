@@ -24,7 +24,7 @@ export const de: Content = {
   meta: {
     title: 'Vito Krawutschke · Full-Stack- und KI-Engineer, Köln',
     description:
-      'Full-Stack- und KI-Engineer in Köln. Ich baue mit KI, bringe Software in Produktion und schule Teams darin. Sofort verfügbar, remote oder hybrid.',
+      'Full-Stack-Engineer in Köln. Ich baue Cloud-native Apps mit integrierter KI und zeige Teams, wie das geht. Sofort verfügbar, remote oder hybrid.',
     lang: 'de',
   },
   nav: {
@@ -40,17 +40,17 @@ export const de: Content = {
     pill: 'Sofort verfügbar',
     pillDetail: 'Remote, international oder hybrid in Köln / NRW',
     eyebrow: 'Vito Krawutschke · Full-Stack- und KI-Engineer, Köln',
-    headline: 'Ich baue Web-Apps und KI-Produkte und bringe sie in Produktion.',
+    headline: 'Ich baue Cloud-native Full-Stack-Apps mit KI und bringe es Teams bei.',
     proofPoints: [
-      { value: '70k+', label: 'Gäste auf der Fusion-Festival-Plattform' },
-      { value: '1 bis 2', label: 'Tage pro Feature mit KI-Agenten' },
-      { value: '20 von 20', label: 'Bootcamp-Teilnehmende mit laufender App' },
+      { value: 'Startups bis DAX', label: 'Cloud-native Apps auf AWS und Terraform' },
+      { value: 'KI integriert', label: 'RAG, Agenten und LLM-Features in Live-Produkten' },
+      { value: 'Jeder Kurs', label: 'Alle Teilnehmenden haben eine Web-App mit Agentic Coding gebaut' },
     ],
     buttons: {
       primary: { label: 'Stack ansehen', href: '#index' },
       secondary: { label: 'Kontakt aufnehmen', href: '#say-hi' },
     },
-    footer: 'Köln · Deutsch, Englisch, Spanisch, Portugiesisch',
+    footer: 'Dieser Turm ist mein Trainingsgelände für 3D im Web, gebaut mit three.js.',
   },
   index: {
     caption: 'Abschnitt / sieben Etagen',
@@ -229,7 +229,7 @@ export const de: Content = {
     caption: 'Dach / Über mich',
     heading: 'Wenn die Arbeit getan ist, ',
     headingEmphasis: 'beginnt die Musik.',
-    text: 'Ich bin Vito. Informatik an der HHU Düsseldorf mit Schwerpunkt maschinelles Lernen, danach Full-Stack-Arbeit für Startups und DAX-Konzerne. Jahre in Bars und Restaurants haben mich gelehrt, unter Druck ruhig zu bleiben. Heute leite ich ehrenamtliche Küchen auf Musikfestivals und koche für 500 Menschen mit Teams von 8 bis 14 Personen.',
+    text: 'Ich bin Vito. Informatik an der HHU Düsseldorf mit Schwerpunkt maschinelles Lernen, danach Full-Stack-Arbeit für Startups und DAX-Konzerne. Jahre in Bars und Restaurants haben mich gelehrt, unter Druck ruhig zu bleiben. Heute leite ich ehrenamtliche Küchen auf Musikfestivals und koche für 500 Menschen mit Teams von 8 bis 14 Personen. Gerade trainiere ich, animierte 3D-Websites wie diese zu bauen. Das macht Spaß und zeigt meine kreative Seite.',
     facts: [
       { label: 'Sprachen', value: 'Deutsch, Englisch, Spanisch, Portugiesisch' },
       { label: 'Kultur', value: 'Kunst, House-Musik, Festivals' },

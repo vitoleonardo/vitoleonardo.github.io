@@ -138,8 +138,10 @@ h1 {
 
 .proof-value {
   font-family: var(--font-mono);
-  font-size: 1.25rem;
+  font-size: 0.875rem;
   font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
   color: var(--accent);
 }
 
@@ -701,11 +703,16 @@ h3 {
   }
 
   .proof-points {
+    grid-template-columns: 1fr;
     gap: var(--space-2);
   }
 
+  .proof-points li {
+    gap: 0;
+  }
+
   .proof-value {
-    font-size: 1rem;
+    font-size: 0.75rem;
   }
 
   .proof-label {
