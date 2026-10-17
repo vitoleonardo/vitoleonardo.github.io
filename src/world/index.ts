@@ -40,11 +40,15 @@ const MAX_FRAME_SECONDS = 1 / 30
 const NOMINAL_FRAME_MS = 1000 / 60
 const READY_CLASS = 'world-ready'
 const NO_WEBGL_CLASS = 'no-webgl'
+const TONE_MAPPING_EXPOSURE = 1.3
+
+export type FrameListener = (frame: Readonly<FrameState>) => void
 
 export interface WorldApi {
   conductor: Conductor
   proxies: readonly InteractiveProxy[]
   camera: PerspectiveCamera
+  onFrame(listener: FrameListener): () => void
   dispose(): void
 }
 
@@ -69,7 +73,7 @@ function createRenderer(canvas: HTMLCanvasElement, quality: QualityTier): WebGLR
   })
   renderer.outputColorSpace = SRGBColorSpace
   renderer.toneMapping = ACESFilmicToneMapping
-  renderer.toneMappingExposure = 1
+  renderer.toneMappingExposure = TONE_MAPPING_EXPOSURE
   renderer.shadowMap.enabled = quality.shadows > 0
   renderer.shadowMap.type = PCFShadowMap
   return renderer
@@ -177,6 +181,7 @@ export async function initWorld(canvas: HTMLCanvasElement): Promise<WorldApi> {
     mobile: viewport.mobile,
   }
 
+  const frameListeners = new Set<FrameListener>()
   let animationFrame = 0
   let lastTime = 0
   let resizePending = true
@@ -219,6 +224,7 @@ export async function initWorld(canvas: HTMLCanvasElement): Promise<WorldApi> {
     lastTime = now
     advance(Math.min(elapsedMs / 1000, MAX_FRAME_SECONDS))
     post.render(frame.world.bloom)
+    for (const listener of frameListeners) listener(frame)
     const downgrade = governor.sample(elapsedMs, now)
     if (downgrade) applyTier(downgrade)
     animationFrame = requestAnimationFrame(tick)
@@ -276,6 +282,7 @@ export async function initWorld(canvas: HTMLCanvasElement): Promise<WorldApi> {
     if (disposed) return
     disposed = true
     stopLoop()
+    frameListeners.clear()
     canvasObserver.disconnect()
     document.removeEventListener('visibilitychange', onVisibilityChange)
     canvas.removeEventListener('webglcontextlost', onContextLost)
@@ -297,6 +304,10 @@ export async function initWorld(canvas: HTMLCanvasElement): Promise<WorldApi> {
     conductor,
     proxies: sets.flatMap((set) => set.proxies),
     camera,
+    onFrame(listener) {
+      frameListeners.add(listener)
+      return () => frameListeners.delete(listener)
+    },
     dispose,
   }
 }

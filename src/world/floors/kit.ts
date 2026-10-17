@@ -9,12 +9,15 @@ import {
   MeshBasicMaterial,
   MeshStandardMaterial,
   ShaderMaterial,
+  Vector4,
   type BufferGeometry,
   type ColorRepresentation,
+  type IUniform,
   type Material,
   type MeshBasicMaterialParameters,
   type MeshStandardMaterialParameters,
   type Object3D,
+  type Texture,
 } from 'three'
 import type { ChapterId, ConductorState, FloorId, InteractionState, InteractiveProxy, SharedTextures, Vec3 } from '../types'
 
@@ -76,10 +79,10 @@ export interface InteriorPractical {
 }
 
 export const interiorPracticals: readonly InteriorPractical[] = [
-  { chapter: chapterIndex.frontend, position: [0.6, floorBase.frontend + 3, 2.2], color: palette.warm, intensity: 20, distance: 14, pulses: false, fill: 7 },
-  { chapter: chapterIndex.backend, position: [2, floorBase.backend + 3.2, 1.5], color: '#BCCBFF', intensity: 22, distance: 15, pulses: false, fill: 7 },
-  { chapter: chapterIndex.cloud, position: [-2.8, floorBase.cloud + 3.2, 1], color: '#D2DAFF', intensity: 20, distance: 14, pulses: false, fill: 7 },
-  { chapter: chapterIndex.data, position: [0.5, floorBase.data + 3.3, 3.2], color: '#BCCBFF', intensity: 20, distance: 14, pulses: false, fill: 7 },
+  { chapter: chapterIndex.frontend, position: [0.8, floorBase.frontend + 2.6, 0.6], color: palette.warm, intensity: 8, distance: 12, pulses: false, fill: 7 },
+  { chapter: chapterIndex.backend, position: [2, floorBase.backend + 2.7, 1.5], color: '#BCCBFF', intensity: 22, distance: 15, pulses: false, fill: 7 },
+  { chapter: chapterIndex.cloud, position: [-2.8, floorBase.cloud + 2.8, 1], color: '#D2DAFF', intensity: 20, distance: 14, pulses: false, fill: 7 },
+  { chapter: chapterIndex.data, position: [0.5, floorBase.data + 2.8, 3.2], color: '#BCCBFF', intensity: 20, distance: 14, pulses: false, fill: 7 },
   { chapter: chapterIndex.aiProducts, position: [-2.5, floorBase['ai-core'] + 3.2, 3.5], color: '#9FB2FF', intensity: 7, distance: 12, pulses: false, fill: 0 },
   { chapter: chapterIndex.teaching, position: [0.5, floorBase.teaching + 3.3, 2.5], color: palette.warm, intensity: 10, distance: 13, pulses: false, fill: 0 },
   { chapter: chapterIndex.about, position: [4.4, floorBase.lounge + 2, 3.4], color: palette.warm, intensity: 9, distance: 11, pulses: true, fill: 0 },
@@ -113,6 +116,148 @@ export function emphasisOf(state: InteractionState): number {
   return 0
 }
 
+export interface SurfacePatch {
+  key: string
+  uniforms?: Record<string, IUniform>
+  fragmentHeader?: string
+  albedo?: string
+  roughness?: string
+}
+
+const surfaceVaryings = `
+varying vec3 vSurfacePosition;
+varying vec3 vSurfaceNormal;
+`
+
+const surfaceVertex = `
+vec4 surfacePosition = vec4( transformed, 1.0 );
+vec3 surfaceNormal = objectNormal;
+#ifdef USE_INSTANCING
+  surfacePosition = instanceMatrix * surfacePosition;
+  surfaceNormal = mat3( instanceMatrix ) * surfaceNormal;
+#endif
+vSurfacePosition = ( modelMatrix * surfacePosition ).xyz;
+vSurfaceNormal = normalize( mat3( modelMatrix ) * surfaceNormal );
+`
+
+const surfaceNoise = `
+float surfaceHash( vec3 point ) {
+  point = fract( point * 0.3183099 + 0.1 );
+  point *= 17.0;
+  return fract( point.x * point.y * point.z * ( point.x + point.y + point.z ) );
+}
+float surfaceNoise( vec3 point ) {
+  vec3 cell = floor( point );
+  vec3 blend = fract( point );
+  blend = blend * blend * ( 3.0 - 2.0 * blend );
+  float near = mix(
+    mix( surfaceHash( cell ), surfaceHash( cell + vec3( 1.0, 0.0, 0.0 ) ), blend.x ),
+    mix( surfaceHash( cell + vec3( 0.0, 1.0, 0.0 ) ), surfaceHash( cell + vec3( 1.0, 1.0, 0.0 ) ), blend.x ),
+    blend.y
+  );
+  float far = mix(
+    mix( surfaceHash( cell + vec3( 0.0, 0.0, 1.0 ) ), surfaceHash( cell + vec3( 1.0, 0.0, 1.0 ) ), blend.x ),
+    mix( surfaceHash( cell + vec3( 0.0, 1.0, 1.0 ) ), surfaceHash( cell + vec3( 1.0, 1.0, 1.0 ) ), blend.x ),
+    blend.y
+  );
+  return mix( near, far, blend.z );
+}
+float surfaceFbm( vec3 point ) {
+  return surfaceNoise( point ) * 0.55 + surfaceNoise( point * 2.07 + 13.1 ) * 0.3 + surfaceNoise( point * 4.31 + 7.7 ) * 0.15;
+}
+`
+
+export function patchSurface<T extends MeshStandardMaterial>(material: T, patch: SurfacePatch): T {
+  material.onBeforeCompile = (shader) => {
+    Object.assign(shader.uniforms, patch.uniforms)
+    shader.vertexShader = shader.vertexShader
+      .replace('#include <common>', `#include <common>\n${surfaceVaryings}`)
+      .replace('#include <project_vertex>', `#include <project_vertex>\n${surfaceVertex}`)
+    shader.fragmentShader = shader.fragmentShader
+      .replace('#include <common>', `#include <common>\n${surfaceVaryings}${surfaceNoise}${patch.fragmentHeader ?? ''}`)
+      .replace('#include <map_fragment>', `#include <map_fragment>\n${patch.albedo ?? ''}`)
+      .replace('#include <roughnessmap_fragment>', `#include <roughnessmap_fragment>\n${patch.roughness ?? ''}`)
+  }
+  material.customProgramCacheKey = () => patch.key
+  return material
+}
+
+export interface SurfaceBreakup {
+  cellsPerMetre: number
+  roughnessSwing: number
+  albedoSwing: number
+  verticalStretch: number
+}
+
+export function withSurfaceBreakup<T extends MeshStandardMaterial>(material: T, breakup: SurfaceBreakup): T {
+  return patchSurface(material, {
+    key: 'surface-breakup',
+    uniforms: {
+      uBreakup: { value: new Vector4(breakup.cellsPerMetre, breakup.roughnessSwing, breakup.albedoSwing, breakup.verticalStretch) },
+    },
+    fragmentHeader: 'uniform vec4 uBreakup;\n',
+    albedo: `
+      vec3 breakupScale = vec3( uBreakup.x, uBreakup.x / uBreakup.w, uBreakup.x );
+      float breakupField = surfaceFbm( vSurfacePosition * breakupScale );
+      float breakupFine = surfaceNoise( vSurfacePosition * uBreakup.x * 11.0 );
+      diffuseColor.rgb *= 1.0 + ( breakupField - 0.5 ) * 2.0 * uBreakup.z;
+    `,
+    roughness: `
+      roughnessFactor = clamp( roughnessFactor + ( breakupField - 0.5 ) * 2.0 * uBreakup.y + ( breakupFine - 0.5 ) * 0.6 * uBreakup.y, 0.05, 1.0 );
+    `,
+  })
+}
+
+export interface ConcreteWear {
+  groundY: number
+  dampHeight: number
+  shelter: readonly [minX: number, minZ: number, maxX: number, maxZ: number]
+  rainDrift: number
+  polishPaths: readonly (readonly [fromX: number, fromZ: number, toX: number, toZ: number])[]
+  polishWidth: number
+}
+
+const maxPolishPaths = 4
+const unusedPolishPath = new Vector4(1e4, 1e4, 1e4, 1e4)
+
+const concreteWearHeader = `
+uniform vec4 uWearGround;
+uniform vec4 uWearShelter;
+uniform vec4 uWearPaths[ ${maxPolishPaths} ];
+float wearSegmentDistance( vec2 point, vec4 segment ) {
+  vec2 along = segment.zw - segment.xy;
+  float t = clamp( dot( point - segment.xy, along ) / max( dot( along, along ), 1e-4 ), 0.0, 1.0 );
+  return length( point - segment.xy - along * t );
+}
+`
+
+const concreteWearAlbedo = `
+  float wearNoise = surfaceFbm( vSurfacePosition * 1.7 );
+  float wearFine = surfaceNoise( vSurfacePosition * 9.0 );
+  float wearUp = smoothstep( 0.6, 0.9, vSurfaceNormal.y );
+  float wearHeight = vSurfacePosition.y - uWearGround.x;
+  float wearAtGround = 1.0 - smoothstep( 0.03, 0.1, abs( wearHeight ) );
+  vec2 wearInside = step( uWearShelter.xy, vSurfacePosition.xz ) * step( vSurfacePosition.xz, uWearShelter.zw );
+  float wearDrift = ( wearNoise - 0.5 ) * uWearGround.z;
+  float wearSheltered = wearInside.x * wearInside.y * smoothstep( 0.0, uWearGround.z, uWearShelter.w - vSurfacePosition.z + wearDrift );
+  float wearWet = wearUp * wearAtGround * ( 1.0 - wearSheltered );
+  float wearDampEdge = uWearGround.y * ( 0.65 + 0.7 * wearNoise );
+  float wearDamp = ( 1.0 - wearUp ) * ( 1.0 - smoothstep( wearDampEdge - 0.12, wearDampEdge, wearHeight ) ) * step( -0.6, wearHeight );
+  float wearPolish = 0.0;
+  for ( int path = 0; path < ${maxPolishPaths}; path ++ ) {
+    float reach = wearSegmentDistance( vSurfacePosition.xz, uWearPaths[ path ] );
+    wearPolish = max( wearPolish, 1.0 - smoothstep( uWearGround.w * 0.3, uWearGround.w, reach ) );
+  }
+  wearPolish *= wearUp * wearAtGround * ( 0.55 + 0.45 * wearNoise );
+  diffuseColor.rgb *= mix( 1.0, 0.6, wearDamp ) * mix( 1.0, 0.52, wearWet ) * mix( 1.0, 0.88, wearPolish );
+`
+
+const concreteWearRoughness = `
+  roughnessFactor = mix( roughnessFactor, 0.62, wearDamp * 0.6 );
+  roughnessFactor = mix( roughnessFactor, 0.3 + wearFine * 0.14, wearPolish );
+  roughnessFactor = mix( roughnessFactor, 0.07 + wearNoise * 0.24, wearWet );
+`
+
 export function concreteMaterial(
   textures: SharedTextures,
   parameters: MeshStandardMaterialParameters = {},
@@ -127,10 +272,66 @@ export function concreteMaterial(
   })
 }
 
-export const steelAlbedo = '#30343B'
+export function wornConcreteMaterial(
+  textures: SharedTextures,
+  wear: ConcreteWear,
+  parameters: MeshStandardMaterialParameters = {},
+): MeshStandardMaterial {
+  const paths = Array.from({ length: maxPolishPaths }, (_, index) => {
+    const path = wear.polishPaths[index]
+    return path ? new Vector4(...path) : unusedPolishPath.clone()
+  })
+  return patchSurface(concreteMaterial(textures, parameters), {
+    key: 'concrete-wear',
+    uniforms: {
+      uWearGround: { value: new Vector4(wear.groundY, wear.dampHeight, wear.rainDrift, wear.polishWidth) },
+      uWearShelter: { value: new Vector4(...wear.shelter) },
+      uWearPaths: { value: paths },
+    },
+    fragmentHeader: concreteWearHeader,
+    albedo: concreteWearAlbedo,
+    roughness: concreteWearRoughness,
+  })
+}
+
+const blackenedSteel: SurfaceBreakup = { cellsPerMetre: 2.4, roughnessSwing: 0.17, albedoSwing: 0.2, verticalStretch: 4 }
+const agedBrass: SurfaceBreakup = { cellsPerMetre: 7, roughnessSwing: 0.13, albedoSwing: 0.16, verticalStretch: 1 }
 
 export function steelMaterial(parameters: MeshStandardMaterialParameters = {}): MeshStandardMaterial {
-  return new MeshStandardMaterial({ color: steelAlbedo, metalness: 0.6, roughness: 0.45, ...parameters })
+  return withSurfaceBreakup(
+    new MeshStandardMaterial({ color: '#3A3E44', metalness: 0.78, roughness: 0.46, ...parameters }),
+    blackenedSteel,
+  )
+}
+
+export function brassMaterial(parameters: MeshStandardMaterialParameters = {}): MeshStandardMaterial {
+  return withSurfaceBreakup(
+    new MeshStandardMaterial({ color: '#B08A52', metalness: 1, roughness: 0.34, ...parameters }),
+    agedBrass,
+  )
+}
+
+export const luminance = {
+  screen: 0.62,
+  screenEmphasis: 0.3,
+  bulb: 7,
+  shadeInterior: 0.38,
+} as const
+
+export function screenMaterial(texture: Texture, parameters: MeshStandardMaterialParameters = {}): MeshStandardMaterial {
+  return new MeshStandardMaterial({
+    color: '#05070A',
+    roughness: 0.42,
+    metalness: 0,
+    emissive: '#ffffff',
+    emissiveMap: texture,
+    emissiveIntensity: luminance.screen,
+    ...parameters,
+  })
+}
+
+export function bulbEmitter(color: ColorRepresentation = palette.warm, parameters: MeshBasicMaterialParameters = {}): Emitter {
+  return createEmitter(color, luminance.bulb, parameters)
 }
 
 export function glassMaterial(opacity: number): MeshStandardMaterial {

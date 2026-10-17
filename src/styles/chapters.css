@@ -100,7 +100,7 @@ h1 {
   letter-spacing: -0.04em;
 }
 
-h1 span {
+h1 > span {
   display: block;
 }
 
@@ -370,18 +370,42 @@ h3 {
   background: var(--accent);
 }
 
-.hotspot:hover {
+.hotspot:hover,
+.hotspot[data-state='hover'],
+.hotspot[data-state='focused'] {
   border-color: var(--accent);
 }
 
-.hotspot[aria-pressed='true'] {
+.hotspot[aria-pressed='true'],
+.hotspot[data-state='active'] {
   background: var(--accent);
   border-color: var(--accent);
   color: var(--night);
 }
 
-.hotspot[aria-pressed='true']::before {
+.hotspot[aria-pressed='true']::before,
+.hotspot[data-state='active']::before {
   background: var(--night);
+}
+
+.is-pointing-hotspot,
+.is-pointing-hotspot .chapter {
+  cursor: pointer;
+}
+
+.is-pointing-hotspot .chapter-copy {
+  cursor: auto;
+}
+
+.work-caption {
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  color: var(--accent);
+}
+
+.work-caption:empty {
+  display: none;
 }
 
 .homelab {
@@ -410,9 +434,26 @@ h3 {
   gap: var(--space-1) var(--space-3);
 }
 
+.service-list li {
+  padding-block: var(--space-1);
+  border-left: 2px solid transparent;
+  transition: border-color 0.2s, background 0.2s;
+}
+
+.service-list li.is-highlighted {
+  padding-inline: var(--space-3);
+  margin-inline: calc(var(--space-3) * -1);
+  border-left-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+
 .service-note {
   font-size: 0.8125rem;
   color: var(--text-faint);
+}
+
+.service-list li.is-highlighted .service-note {
+  color: var(--text-muted);
 }
 
 .portrait,
@@ -458,26 +499,36 @@ h3 {
   color: var(--text-faint);
 }
 
-.js [data-reveal='words'],
-.js .chapter-copy > * {
-  opacity: 0;
-  transform: translateY(12px);
-  transition: opacity 0.7s var(--ease-out), transform 0.7s var(--ease-out);
+.word {
+  display: inline-block;
 }
 
-.js .chapter.is-active [data-reveal='words'],
-.js .chapter.is-active .chapter-copy > * {
-  opacity: 1;
-  transform: none;
-}
+@media (min-width: 900px) {
+  .dom-ready:not(.rm, .no-webgl) .chapter-copy > :not([data-split]),
+  .dom-ready:not(.rm, .no-webgl) .word {
+    opacity: 0;
+    transform: translateY(12px);
+    transition: opacity 0.7s var(--ease-out), transform 0.7s var(--ease-out);
+  }
 
-.rm [data-reveal='words'],
-.rm .chapter-copy > *,
-.no-webgl [data-reveal='words'],
-.no-webgl .chapter-copy > * {
-  opacity: 1;
-  transform: none;
-  transition: none;
+  .dom-ready:not(.rm, .no-webgl) .chapter-copy::before {
+    opacity: 0;
+    transition: opacity 0.7s var(--ease-out);
+  }
+
+  .dom-ready:not(.rm, .no-webgl) .chapter.is-active .chapter-copy > :not([data-split]),
+  .dom-ready:not(.rm, .no-webgl) .chapter.is-active .word {
+    opacity: 1;
+    transform: none;
+  }
+
+  .dom-ready:not(.rm, .no-webgl) .chapter.is-active .chapter-copy::before {
+    opacity: 1;
+  }
+
+  .dom-ready:not(.rm, .no-webgl) .chapter.is-active:not(.has-entered) .word {
+    transition-delay: calc(var(--word-index, 0) * var(--word-stagger, 60ms) + 120ms);
+  }
 }
 
 .no-webgl .chapter {
@@ -519,10 +570,15 @@ h3 {
   display: none;
 }
 
+.no-webgl .hotspot-row:has(> .hotspot[data-hotspot='rocket-launch']) {
+  display: none;
+}
+
 @media (max-width: 899.98px) {
   .chapter {
     align-items: flex-end;
-    padding: calc(var(--header-height) + var(--rail-height) + var(--space-8)) var(--space-3) var(--space-4);
+    padding: calc(var(--header-height) + var(--rail-height) + var(--space-8)) var(--space-3)
+      calc(var(--space-4) + env(safe-area-inset-bottom, 0px));
   }
 
   :root:not(.no-webgl) .chapter {
@@ -550,7 +606,7 @@ h3 {
     font-size: clamp(2.5rem, 11vw, 4.5rem);
   }
 
-  h1 span {
+  h1 > span {
     display: inline;
   }
 
@@ -603,10 +659,6 @@ h3 {
 
   .proof-list h3 {
     font-size: 0.9375rem;
-  }
-
-  :root:not(.no-webgl) :is(.proof-detail, .chapter-note, .chip-list, .layer-list, .stats-note, .annotation, .stop-tools) {
-    display: none;
   }
 
   .index-stop .hotspot {

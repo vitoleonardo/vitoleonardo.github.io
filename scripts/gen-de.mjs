@@ -40,7 +40,6 @@ function buildDictionary(english, german) {
   dictionary.set('Main', escapeHtml(german.ui.mainNavLabel))
   dictionary.set('Language', escapeHtml(german.ui.languageLabel))
   dictionary.set('Contact and legal', escapeHtml(german.ui.contactLegalLabel))
-  dictionary.set('Stop', 'Station')
   return dictionary
 }
 

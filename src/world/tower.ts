@@ -1,7 +1,10 @@
 import {
   AdditiveBlending,
   BoxGeometry,
+  BufferGeometry,
   Color,
+  Float32BufferAttribute,
+  FogExp2,
   Group,
   Matrix4,
   Mesh,
@@ -9,8 +12,10 @@ import {
   MeshStandardMaterial,
   PlaneGeometry,
   PointLight,
-  type BufferGeometry,
+  ShaderMaterial,
+  Vector4,
   type InstancedMesh,
+  type Texture,
 } from 'three'
 import {
   block,
@@ -25,11 +30,10 @@ import {
   scaleUVs,
   strut,
 } from './geometry'
-import { createGlowTexture, createWetAsphaltTextures, withAnisotropy } from './textures'
+import { createGlowTexture, createSlabTextures, createWetAsphaltTextures } from './textures'
 import {
   approach,
   chapterIndex,
-  concreteMaterial,
   createEmitter,
   createProxy,
   disposeTree,
@@ -39,6 +43,8 @@ import {
   smoothstep,
   steelMaterial,
   towerSpec,
+  wornConcreteMaterial,
+  type ConcreteWear,
 } from './floors/kit'
 import type { FloorFactory, FrameState, InteractiveProxy, Vec3 } from './types'
 
@@ -81,9 +87,116 @@ const lampZ = 10.6
 const litLampX = -8
 const roofHole = 1.8
 const concreteTile = 2.4
+const anisotropyLevel = 8
+const reflectionStrength = 1.2
+const asphaltTile = 8
+const upFacingThreshold = 0.5
+
+const groundWear: ConcreteWear = {
+  groundY: 0,
+  dampHeight: 0.42,
+  shelter: [-half, -half, half, half],
+  rainDrift: 0.8,
+  polishPaths: [
+    [doorX, kerbZ - 2.4, doorX - 1, 4.6],
+    [doorX - 1, 4.6, 0.8, 0.4],
+    [doorX - 1, 4.6, -2.6, 3.8],
+    [doorX - doorHalfWidth + 0.2, half + 0.05, doorX + doorHalfWidth - 0.2, half + 0.05],
+  ],
+  polishWidth: 0.95,
+}
+
+interface ReflectionSource {
+  position: Vec3
+  strength: number
+  spread: number
+}
+
+const reflectionSources: readonly ReflectionSource[] = [
+  ...lampXs.map((x): ReflectionSource => ({ position: [x, 4.96, lampZ + 1.05], strength: 1, spread: 1 })),
+  { position: [doorX, 1.5, half + 0.3], strength: 0.55, spread: 2.4 },
+  { position: [doorX, doorHeight + 0.43, half + 1.6], strength: 0.5, spread: 1.6 },
+]
+
+const reflectionVertexShader = `
+varying vec3 vWorld;
+void main() {
+  vec4 world = modelMatrix * vec4( position, 1.0 );
+  vWorld = world.xyz;
+  gl_Position = projectionMatrix * viewMatrix * world;
+}
+`
+
+const reflectionFragmentShader = `
+#define SOURCE_COUNT ${reflectionSources.length}
+uniform vec4 uSources[ SOURCE_COUNT ];
+uniform float uSpread[ SOURCE_COUNT ];
+uniform vec3 uColor;
+uniform float uIntensity;
+uniform float uFogDensity;
+uniform sampler2D uWetness;
+uniform vec3 uWetnessFrame;
+varying vec3 vWorld;
+void main() {
+  vec3 view = normalize( vWorld - cameraPosition );
+  vec3 mirrored = reflect( view, vec3( 0.0, 1.0, 0.0 ) );
+  vec3 heading = normalize( vec3( mirrored.x, 0.0, mirrored.z ) + vec3( 1e-5, 0.0, 0.0 ) );
+  vec3 side = vec3( -heading.z, 0.0, heading.x );
+  vec2 wetnessUv = vec2( vWorld.x - uWetnessFrame.x, uWetnessFrame.y - vWorld.z ) / uWetnessFrame.z;
+  float roughness = texture2D( uWetness, wetnessUv ).g;
+  float standing = 1.0 - smoothstep( 0.06, 0.3, roughness );
+  float sheen = 1.0 - smoothstep( 0.2, 0.62, roughness );
+  float glow = 0.0;
+  for ( int source = 0; source < SOURCE_COUNT; source ++ ) {
+    vec3 toSource = normalize( uSources[ source ].xyz - vWorld );
+    float across = dot( toSource - mirrored, side ) / uSpread[ source ];
+    float rise = ( toSource.y - mirrored.y ) / uSpread[ source ];
+    float sharp = exp( -across * across / 0.0004 - rise * rise / 0.008 );
+    float soft = exp( -across * across / 0.0036 - rise * rise / 0.032 );
+    glow += uSources[ source ].w * step( 0.0, dot( toSource, mirrored ) ) * ( sharp * standing + soft * 0.18 * sheen );
+  }
+  float fresnel = 0.3 + 0.7 * pow( 1.0 - abs( view.y ), 4.0 );
+  float depth = distance( vWorld, cameraPosition );
+  glow *= 1.0 - 0.75 * smoothstep( 25.0, 70.0, depth );
+  float fogged = exp( -uFogDensity * uFogDensity * depth * depth );
+  gl_FragColor = vec4( uColor * glow * fresnel * fogged * uIntensity, 1.0 );
+  #include <tonemapping_fragment>
+  #include <colorspace_fragment>
+}
+`
 
 function mirrorX([x, y, z]: Vec3, side: number): Vec3 {
   return [x * side, y, z]
+}
+
+function splitByFacing(geometry: BufferGeometry): { up: BufferGeometry; rest: BufferGeometry } {
+  const flat = geometry.index ? geometry.toNonIndexed() : geometry
+  const names = Object.keys(flat.attributes)
+  const normal = flat.getAttribute('normal')
+  const buckets = { up: new Map<string, number[]>(), rest: new Map<string, number[]>() }
+  for (const bucket of Object.values(buckets)) for (const name of names) bucket.set(name, [])
+  for (let vertex = 0; vertex < normal.count; vertex += 3) {
+    const facesUp = normal.getY(vertex) + normal.getY(vertex + 1) + normal.getY(vertex + 2) > upFacingThreshold * 3
+    const bucket = facesUp ? buckets.up : buckets.rest
+    for (const name of names) {
+      const attribute = flat.getAttribute(name)
+      const target = bucket.get(name) as number[]
+      for (let corner = 0; corner < 3; corner += 1) {
+        for (let component = 0; component < attribute.itemSize; component += 1) {
+          target.push(attribute.getComponent(vertex + corner, component))
+        }
+      }
+    }
+  }
+  const build = (bucket: Map<string, number[]>) => {
+    const part = new BufferGeometry()
+    for (const name of names) part.setAttribute(name, new Float32BufferAttribute(bucket.get(name) as number[], flat.getAttribute(name).itemSize))
+    return part
+  }
+  const parts = { up: build(buckets.up), rest: build(buckets.rest) }
+  geometry.dispose()
+  flat.dispose()
+  return parts
 }
 
 function piersBetween(openings: readonly (readonly [number, number])[], from: number, to: number): [number, number][] {
@@ -231,7 +344,7 @@ function steelDetailGeometry(): BufferGeometry {
     block(entrance.canopySize, entrance.canopyCenter),
     ...[-1, 1].map((side) => strut(mirrorX(entrance.braceLow, side), mirrorX(entrance.braceHigh, side), 0.04)),
   ])
-  const pieces: BufferGeometry[] = [place(doorFrame, [doorX, 0, 0])]
+  const pieces: BufferGeometry[] = [place(doorFrame, [doorX, 0, 0]), doorLeafGeometry(-1).frame, doorLeafGeometry(1).frame]
   for (const side of [-1, 1]) {
     pieces.push(blockBetween([side < 0 ? -outer - 0.02 : outer, crownBase + 0.2, -outer], [side < 0 ? -outer : outer + 0.02, crownBase + 0.3, slabFront]))
   }
@@ -253,6 +366,7 @@ function glassGeometry(): BufferGeometry {
   }
   pieces.push(blockBetween([towerSpec.core.maxX, crownSill, -outer + 0.19], [outer - 0.2, roof - slab, -outer + 0.21]))
   pieces.push(blockBetween([-half, crownSill, half + 0.19], [half, roof - slab, half + 0.21]))
+  pieces.push(doorLeafGeometry(-1).pane, doorLeafGeometry(1).pane)
   return merge(pieces)
 }
 
@@ -267,13 +381,31 @@ function stripMatrices(): Matrix4[] {
   return strips
 }
 
-function doorGeometry(): BufferGeometry {
+function doorLeafGeometry(side: -1 | 1): { frame: BufferGeometry; pane: BufferGeometry } {
   const { leafWidth, leafOpenAngle, hingeZ } = entrance
-  const westLeaf = place(block([leafWidth, doorHeight - 0.05, 0.05], [leafWidth / 2, 0, 0]), [-doorHalfWidth, doorHeight / 2, hingeZ], [0, -leafOpenAngle, 0])
-  const eastLeaf = place(block([leafWidth, doorHeight - 0.05, 0.05], [-leafWidth / 2, 0, 0]), [doorHalfWidth, doorHeight / 2, hingeZ], [0, leafOpenAngle, 0])
+  const leafHeight = doorHeight - 0.05
+  const stile = 0.08
+  const topRail = 0.1
+  const bottomRail = 0.22
+  const thickness = 0.05
+  const centerX = (-side * leafWidth) / 2
+  const frame = merge([
+    block([stile, leafHeight, thickness], [centerX - (leafWidth - stile) / 2, 0, 0]),
+    block([stile, leafHeight, thickness], [centerX + (leafWidth - stile) / 2, 0, 0]),
+    block([leafWidth - stile * 2, topRail, thickness], [centerX, leafHeight / 2 - topRail / 2, 0]),
+    block([leafWidth - stile * 2, bottomRail, thickness], [centerX, -leafHeight / 2 + bottomRail / 2, 0]),
+    block([0.03, 0.9, 0.03], [centerX - side * (leafWidth / 2 - stile - 0.06), -0.1, thickness]),
+  ])
+  const pane = block([leafWidth - stile * 2, leafHeight - topRail - bottomRail, 0.012], [centerX, (bottomRail - topRail) / 2, 0])
+  const hinge: Vec3 = [doorX + side * doorHalfWidth, doorHeight / 2, hingeZ]
+  const swing: Vec3 = [0, side * leafOpenAngle, 0]
+  return { frame: place(frame, hinge, swing), pane: place(pane, hinge, swing) }
+}
+
+function doorGeometry(): BufferGeometry {
   const canopyLight = block([4.2, 0.03, 0.08], [0, doorHeight + 0.43, half + 1.6])
   const threshold = block([doorHalfWidth * 2, 0.02, 0.12], [0, 0.012, half + 0.2])
-  return place(merge([westLeaf, eastLeaf, canopyLight, threshold]), [doorX, 0, 0])
+  return place(merge([canopyLight, threshold]), [doorX, 0, 0])
 }
 
 function markingGeometry(): BufferGeometry {
@@ -350,25 +482,60 @@ function neighbourWindows(): { matrices: Matrix4[]; colors: Color[] } {
   return { matrices, colors }
 }
 
+function wetReflectionGeometry(): BufferGeometry {
+  const lift = 0.004
+  const roadDepth = streetFarZ - kerbZ - 0.25
+  const pavementDepth = kerbZ - half
+  return merge([
+    place(new PlaneGeometry(streetHalfWidth * 2, roadDepth), [0, roadY + lift, kerbZ + 0.25 + roadDepth / 2], [-Math.PI / 2, 0, 0]),
+    place(new PlaneGeometry(streetHalfWidth * 2, pavementDepth), [0, lift, half + pavementDepth / 2], [-Math.PI / 2, 0, 0]),
+  ])
+}
+
+function createWetReflections(wetness: Texture): { mesh: Mesh; material: ShaderMaterial } {
+  const material = new ShaderMaterial({
+    uniforms: {
+      uSources: { value: reflectionSources.map(({ position, strength }) => new Vector4(...position, strength)) },
+      uSpread: { value: reflectionSources.map(({ spread }) => spread) },
+      uColor: { value: new Color(palette.warm) },
+      uIntensity: { value: 1 },
+      uFogDensity: { value: 0 },
+      uWetness: { value: wetness },
+      uWetnessFrame: { value: [-streetHalfWidth, streetFarZ, asphaltTile] },
+    },
+    vertexShader: reflectionVertexShader,
+    fragmentShader: reflectionFragmentShader,
+    transparent: true,
+    depthWrite: false,
+    blending: AdditiveBlending,
+    polygonOffset: true,
+    polygonOffsetFactor: -4,
+  })
+  const mesh = new Mesh(wetReflectionGeometry(), material)
+  mesh.renderOrder = 1
+  return { mesh, material }
+}
+
 export const createTower: FloorFactory = (context) => {
   const { textures, renderer } = context
   const root = new Group()
   root.name = 'street'
 
-  const floorMap = withAnisotropy(textures.concrete.map, renderer, 8)
-  const floorNormal = withAnisotropy(textures.concrete.normalMap, renderer, 8)
-  const floorRoughness = withAnisotropy(textures.concrete.roughnessMap, renderer, 8)
+  const slabSurface = createSlabTextures()
   const asphalt = createWetAsphaltTextures()
-  for (const texture of [asphalt.map, asphalt.roughnessMap]) {
-    texture.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy())
+  const anisotropy = Math.min(anisotropyLevel, renderer.capabilities.getMaxAnisotropy())
+  for (const texture of [slabSurface.map, slabSurface.roughnessMap, asphalt.map, asphalt.roughnessMap]) {
+    texture.anisotropy = anisotropy
   }
   const glow = createGlowTexture()
-  const ownedTextures = [floorMap, floorNormal, floorRoughness, asphalt.map, asphalt.roughnessMap, glow]
+  const ownedTextures = [slabSurface.map, slabSurface.roughnessMap, asphalt.map, asphalt.roughnessMap, glow]
 
-  const shell = new Mesh(shellGeometry(), concreteMaterial(textures))
-  const slabs = new Mesh(
-    slabGeometry(),
-    concreteMaterial(textures, { map: floorMap, normalMap: floorNormal, roughnessMap: floorRoughness, color: '#d8d8d8' }),
+  const shell = new Mesh(shellGeometry(), wornConcreteMaterial(textures, groundWear))
+  const slabParts = splitByFacing(slabGeometry())
+  const slabs = new Mesh(slabParts.rest, wornConcreteMaterial(textures, groundWear))
+  const slabTops = new Mesh(
+    slabParts.up,
+    wornConcreteMaterial(textures, groundWear, { map: slabSurface.map, roughnessMap: slabSurface.roughnessMap, normalMap: null }),
   )
   const facade = instances(new BoxGeometry(1, 1, 1), steelMaterial(), facadeMatrices())
   const steelDetail = new Mesh(steelDetailGeometry(), steelMaterial())
@@ -397,6 +564,7 @@ export const createTower: FloorFactory = (context) => {
     ),
     new MeshStandardMaterial({ map: asphalt.map, roughnessMap: asphalt.roughnessMap, roughness: 1, metalness: 0 }),
   )
+  const wetReflections = createWetReflections(asphalt.roughnessMap)
   const markings = new Mesh(
     markingGeometry(),
     new MeshStandardMaterial({ color: new Color(palette.readable).multiplyScalar(0.45), roughness: 0.42, polygonOffset: true, polygonOffsetFactor: -2 }),
@@ -425,11 +593,11 @@ export const createTower: FloorFactory = (context) => {
   const lampLight = new PointLight(palette.warm, 28, 20, 2)
   lampLight.position.set(litLampX, 4.7, lampZ + 1.05)
 
-  const neighbours = new Mesh(neighbourGeometry(), concreteMaterial(textures, { color: '#8d929b' }))
+  const neighbours = new Mesh(neighbourGeometry(), wornConcreteMaterial(textures, groundWear, { color: '#A0A5AD' }))
   const windowLayout = neighbourWindows()
   const neighbourWindowMesh = instances(new PlaneGeometry(1, 1), new MeshBasicMaterial(), windowLayout.matrices, windowLayout.colors)
 
-  for (const mesh of [shell, slabs, facade, neighbours]) {
+  for (const mesh of [shell, slabs, slabTops, facade, neighbours]) {
     mesh.castShadow = true
     mesh.receiveShadow = true
   }
@@ -453,6 +621,7 @@ export const createTower: FloorFactory = (context) => {
   root.add(
     shell,
     slabs,
+    slabTops,
     facade,
     steelDetail,
     glass,
@@ -460,6 +629,7 @@ export const createTower: FloorFactory = (context) => {
     door,
     doorLight,
     road,
+    wetReflections.mesh,
     markings,
     pools,
     lamps,
@@ -489,6 +659,8 @@ export const createTower: FloorFactory = (context) => {
     lampEmitter.set(2.4 * daylight)
     lampLight.intensity = 28 * daylight
     poolMaterial.color.set(palette.warm).multiplyScalar(0.55 * daylight)
+    wetReflections.material.uniforms.uIntensity.value = reflectionStrength * daylight
+    wetReflections.material.uniforms.uFogDensity.value = context.scene.fog instanceof FogExp2 ? context.scene.fog.density : 0
   }
 
   function dispose(): void {

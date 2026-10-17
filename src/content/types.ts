@@ -38,19 +38,15 @@ export interface UiStrings {
   skipLink: string
   mainNavLabel: string
   languageLabel: string
-  whatIDo: string
   stackCount: string
-  afterWork: string
-  lastSong: string
-  soundOff: string
   contactHeading: string
   contactLegalLabel: string
   thumbAlts: string[]
-  freelancermap: string
   floorsLabel: string
   railNames: string[]
   previewFloor: string
   copyEmail: string
+  replayLaunch: string
 }
 
 export interface Content {
@@ -71,7 +67,6 @@ export interface Content {
     footer: string
     next: string
   }
-  stackLabel: string
   stops: Stop[]
   about: {
     caption: string

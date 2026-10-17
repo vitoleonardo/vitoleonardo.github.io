@@ -1,10 +1,12 @@
 import {
   CanvasTexture,
+  Color,
   DataTexture,
   NoColorSpace,
   RepeatWrapping,
   SRGBColorSpace,
   TextureLoader,
+  type ColorRepresentation,
   type ColorSpace,
   type Texture,
   type WebGLRenderer,
@@ -15,7 +17,9 @@ import type { SharedTextures } from './types'
 const concreteResolution = 1024
 const blueprintResolution = 1024
 const asphaltResolution = 512
-const concreteBase = [86, 91, 101] as const
+const slabResolution = 1024
+const concreteBase = [112, 116, 124] as const
+const slabBase = [108, 108, 110] as const
 const placeholderPixel = [10, 14, 23, 255] as const
 
 const imagePaths = {
@@ -107,6 +111,11 @@ function stampDisc(
       visit(wrap(Math.round(centerY) + offsetY, size) * size + wrap(Math.round(centerX) + offsetX, size), coverage)
     }
   }
+}
+
+function smoothRamp(edgeStart: number, edgeEnd: number, value: number): number {
+  const t = Math.min(1, Math.max(0, (value - edgeStart) / (edgeEnd - edgeStart)))
+  return t * t * (3 - 2 * t)
 }
 
 function writeNormals(height: Float32Array, size: number, strength: number, target: ImageData): void {
@@ -273,23 +282,68 @@ function createBlueprintTexture(size: number): CanvasTexture {
   return canvasTexture(canvas, SRGBColorSpace)
 }
 
+export function createSlabTextures(): { map: CanvasTexture; roughnessMap: CanvasTexture } {
+  const size = slabResolution
+  const random = createRandom(4242)
+  const cloud = fractalNoise(size, [[3, 0.4], [8, 0.3], [20, 0.2], [64, 0.1]], random)
+  const trowel = fractalNoise(size, [[5, 0.6], [13, 0.4]], random)
+  const tone = new Float32Array(size * size)
+  const roughness = new Float32Array(size * size)
+  const sawCutWidth = 1.4
+  for (let y = 0; y < size; y += 1) {
+    const cutDistanceY = Math.min(y, size - y)
+    for (let x = 0; x < size; x += 1) {
+      const index = y * size + x
+      const grain = random() - 0.5
+      const cut = Math.max(0, 1 - Math.min(x, size - x, cutDistanceY) / sawCutWidth)
+      const sweep = Math.pow(Math.abs(Math.sin(trowel[index] * 30)), 6)
+      tone[index] = 1 + (cloud[index] - 0.5) * 0.32 + grain * 0.05 - cut * 0.5
+      roughness[index] = 0.66 + (cloud[index] - 0.5) * 0.18 - sweep * 0.05 + cut * 0.14
+    }
+  }
+  for (let speck = 0; speck < 2600; speck += 1) {
+    const shade = random() < 0.5 ? -0.16 : 0.12
+    stampDisc(size, random() * size, random() * size, 0.4 + random() * 1.2, (index, coverage) => {
+      tone[index] += shade * coverage
+    })
+  }
+  const color = createPixelCanvas(size)
+  for (let index = 0; index < tone.length; index += 1) {
+    const offset = index * 4
+    color.image.data[offset] = slabBase[0] * tone[index]
+    color.image.data[offset + 1] = slabBase[1] * tone[index]
+    color.image.data[offset + 2] = slabBase[2] * tone[index]
+    color.image.data[offset + 3] = 255
+  }
+  color.context.putImageData(color.image, 0, 0)
+  const rough = createPixelCanvas(size)
+  writeGray(roughness, rough.image)
+  rough.context.putImageData(rough.image, 0, 0)
+  return { map: canvasTexture(color.canvas, SRGBColorSpace), roughnessMap: canvasTexture(rough.canvas, NoColorSpace) }
+}
+
 export function createWetAsphaltTextures(): { map: CanvasTexture; roughnessMap: CanvasTexture } {
   const size = asphaltResolution
   const random = createRandom(1104)
   const puddles = fractalNoise(size, [[3, 0.5], [7, 0.3], [19, 0.2]], random)
   const grit = fractalNoise(size, [[64, 0.6], [160, 0.4]], random)
+  const ripples = fractalNoise(size, [[40, 0.7], [90, 0.3]], random)
   const color = createPixelCanvas(size)
   const roughness = new Float32Array(size * size)
   for (let index = 0; index < puddles.length; index += 1) {
-    const wetness = Math.min(1, Math.max(0, (puddles[index] - 0.5) / 0.08))
+    const standing = smoothRamp(0.5, 0.56, puddles[index])
+    const damp = smoothRamp(0.4, 0.5, puddles[index])
     const speck = grit[index] - 0.5
-    const level = 0.84 + speck * 0.35 - wetness * 0.22
+    const level = 0.86 + speck * 0.35 - damp * 0.14 - standing * 0.16
     const offset = index * 4
     color.image.data[offset] = 22 * level
     color.image.data[offset + 1] = 25 * level
     color.image.data[offset + 2] = 31 * level
     color.image.data[offset + 3] = 255
-    roughness[index] = 0.52 + speck * 0.3 - wetness * 0.46
+    const dry = 0.62 + speck * 0.3
+    const dampSheen = 0.3 + speck * 0.12
+    const standingWater = 0.035 + (ripples[index] - 0.5) * 0.09
+    roughness[index] = dry + (dampSheen - dry) * damp + (standingWater - dampSheen) * standing
   }
   color.context.putImageData(color.image, 0, 0)
   const rough = createPixelCanvas(size)
@@ -312,11 +366,22 @@ export function createGlowTexture(): CanvasTexture {
   return texture
 }
 
-export function withAnisotropy(texture: Texture, renderer: WebGLRenderer, level: number): Texture {
-  const variant = texture.clone()
-  variant.anisotropy = Math.min(level, renderer.capabilities.getMaxAnisotropy())
-  variant.needsUpdate = true
-  return variant
+export function averageTextureColor(texture: Texture, fallback: ColorRepresentation): Color {
+  const image: unknown = texture.image
+  const drawable = image instanceof HTMLImageElement || image instanceof HTMLCanvasElement || image instanceof ImageBitmap
+  if (!drawable) return new Color(fallback)
+  const sampleSize = 8
+  const { context } = createPixelCanvas(sampleSize)
+  context.drawImage(image, 0, 0, sampleSize, sampleSize)
+  const { data } = context.getImageData(0, 0, sampleSize, sampleSize)
+  const sum = [0, 0, 0]
+  for (let offset = 0; offset < data.length; offset += 4) {
+    sum[0] += data[offset]
+    sum[1] += data[offset + 1]
+    sum[2] += data[offset + 2]
+  }
+  const samples = sampleSize * sampleSize * 255
+  return new Color().setRGB(sum[0] / samples, sum[1] / samples, sum[2] / samples, SRGBColorSpace)
 }
 
 function createPlaceholder(): DataTexture {

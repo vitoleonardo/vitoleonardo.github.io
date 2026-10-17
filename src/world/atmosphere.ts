@@ -39,14 +39,19 @@ const rainBox = [46, 30, 46] as const
 const timeWrap = 600
 const keyTarget = [2, 14, 0] as const
 const keyOffset = [-28, 52, 44] as const
-const fillColor = '#A9B9FF'
+const fillColor = '#B4C0E6'
 const fillFrontZ = 6.4
-const fillDrop = 1.2
+const fillDrop = 0.4
 const fillDistance = 16
+const keyStrength = 2.1
+const hemisphereStrength = 1.35
+const environmentStrength = 0.85
+const skyTint = '#566797'
+const groundBounce = '#1D1B1E'
 
 const skyColors = {
   zenith: '#070A12',
-  horizon: '#151C2C',
+  horizon: '#1A2335',
   cityGlow: '#2B2430',
   dawnZenith: '#2A3654',
   dawnHorizon: palette.dawn,
@@ -355,7 +360,8 @@ export function createAtmosphere(context: FloorContext): FloorSet & { fog: FogEx
   const { scene, camera, quality, renderer } = context
   const root = new Group()
   root.name = 'atmosphere'
-  const fog = new FogExp2(palette.night, fogDensityRange[0])
+  const fogNight = new Color('#121A28')
+  const fog = new FogExp2(fogNight, fogDensityRange[0])
 
   const skyMaterial = createSkyMaterial()
   const sky = new Mesh(new SphereGeometry(skyRadius, 48, 24), skyMaterial)
@@ -368,7 +374,7 @@ export function createAtmosphere(context: FloorContext): FloorSet & { fog: FogEx
 
   const ground = new Mesh(
     place(new CircleGeometry(320, 48), [0, -0.2, 0], [-Math.PI / 2, 0, 0]),
-    new MeshStandardMaterial({ color: '#07090D', roughness: 0.95, metalness: 0 }),
+    new MeshStandardMaterial({ color: '#0C0F14', roughness: 0.95, metalness: 0 }),
   )
   ground.receiveShadow = true
   const river = new Mesh(
@@ -409,8 +415,8 @@ export function createAtmosphere(context: FloorContext): FloorSet & { fog: FogEx
   key.shadow.bias = -0.0004
   key.shadow.normalBias = 0.03
 
-  const skyTint = new Color('#41507A')
-  const hemisphere = new HemisphereLight(skyTint, '#0B0D12', 0.8)
+  const skyColor = new Color(skyTint)
+  const hemisphere = new HemisphereLight(skyColor, groundBounce, hemisphereStrength)
 
   const practicalByChapter = new Map(interiorPracticals.map((practical) => [practical.chapter, practical]))
   const interiorLights = [new PointLight(palette.warm, 0, 12, 2), new PointLight(palette.warm, 0, 12, 2)]
@@ -422,7 +428,6 @@ export function createAtmosphere(context: FloorContext): FloorSet & { fog: FogEx
   const fillPosition = new Vector3()
   const fillSource = new Vector3()
 
-  const fogNight = new Color(palette.night)
   const fogDawn = new Color('#5A5566')
   const fogRed = new Color('#2A0E0D')
   let frozenTime = 0
@@ -456,12 +461,12 @@ export function createAtmosphere(context: FloorContext): FloorSet & { fog: FogEx
     dust.material.uniforms.uOpacity.value = 0.12 + world.practicals * 0.28
     dust.points.geometry.setDrawRange(0, Math.round(dustCapacity * quality.particles))
 
-    key.intensity = 1.8 * world.key
+    key.intensity = keyStrength * world.key
     key.color.copy(moonColor).lerp(dawnColor, world.dawn * 0.7).lerp(redColor, world.red * 0.25)
     key.castShadow = quality.shadows > 0
-    hemisphere.intensity = 0.9 * world.ambient
-    hemisphere.color.copy(skyTint).lerp(dawnColor, world.dawn * 0.5)
-    scene.environmentIntensity = 0.55 * world.ambient + world.dawn * 0.2
+    hemisphere.intensity = hemisphereStrength * world.ambient
+    hemisphere.color.copy(skyColor).lerp(dawnColor, world.dawn * 0.5)
+    scene.environmentIntensity = environmentStrength * world.ambient + world.dawn * 0.2
 
     const lowerChapter = Math.floor(frame.progress.smooth)
     const blend = smoothstep(0.15, 0.85, frame.progress.smooth - lowerChapter)
