@@ -4,9 +4,13 @@ import '@fontsource-variable/jetbrains-mono/wght.css'
 import './styles/tokens.css'
 import './styles/base.css'
 import './styles/chapters.css'
+import './styles/cursor.css'
+import './styles/scramble.css'
 import { conductorSource, createChapterFeed, viewportSource } from './dom/chapter-source'
+import { initCursor } from './dom/cursor'
 import { initRail } from './dom/rail'
 import { initReveal } from './dom/reveal'
+import { initScramble } from './dom/scramble'
 import { env } from './env'
 import { initI18n } from './i18n'
 import type { WorldApi } from './world'
@@ -23,6 +27,8 @@ const rail = initRail(
   feed,
   sections.map((section) => section.id),
 )
+initCursor()
+initScramble()
 const interactions = initInteractions({ sections, chapters: feed, reducedMotion: () => env.reducedMotion })
 feed.connect(viewportSource(sections))
 root.classList.add('dom-ready')

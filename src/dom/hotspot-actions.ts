@@ -1,12 +1,12 @@
 import { indexFloorTargetChapter } from '../world/interaction-state'
 import { copyEmailFrom } from './copy-email'
-
-const HIGHLIGHT_CLASS = 'is-highlighted'
+import { createServiceReadout } from './service-readout'
 
 export interface HotspotActions {
   open(id: string, button: HTMLElement | null): void
   close(id: string, button: HTMLElement | null): void
   trigger(id: string, button: HTMLElement | null): void
+  dispose(): void
 }
 
 export interface HotspotActionOptions {
@@ -23,25 +23,7 @@ function captionOf(button: HTMLElement): HTMLElement | null {
 }
 
 export function createHotspotActions(options: HotspotActionOptions): HotspotActions {
-  const detailsOpenedByHotspot = new WeakSet<HTMLDetailsElement>()
-
-  function openService(button: HTMLElement): void {
-    const details = button.closest('details')
-    if (details && !details.open) {
-      details.open = true
-      detailsOpenedByHotspot.add(details)
-    }
-    button.closest('li')?.classList.add(HIGHLIGHT_CLASS)
-  }
-
-  function closeService(button: HTMLElement): void {
-    button.closest('li')?.classList.remove(HIGHLIGHT_CLASS)
-    const details = button.closest('details')
-    if (!details || !detailsOpenedByHotspot.has(details)) return
-    if (details.querySelector(`.${HIGHLIGHT_CLASS}`)) return
-    details.open = false
-    detailsOpenedByHotspot.delete(details)
-  }
+  const serviceReadout = createServiceReadout()
 
   return {
     open(id, button) {
@@ -50,7 +32,7 @@ export function createHotspotActions(options: HotspotActionOptions): HotspotActi
         const caption = captionOf(button)
         if (caption) caption.textContent = describeButton(button)
       } else if (id.startsWith('lounge-service-')) {
-        openService(button)
+        serviceReadout.pin(button)
       }
     },
     close(id, button) {
@@ -59,7 +41,7 @@ export function createHotspotActions(options: HotspotActionOptions): HotspotActi
         const caption = captionOf(button)
         if (caption) caption.textContent = ''
       } else if (id.startsWith('lounge-service-')) {
-        closeService(button)
+        serviceReadout.unpin(button)
       }
     },
     trigger(id, button) {
@@ -72,6 +54,9 @@ export function createHotspotActions(options: HotspotActionOptions): HotspotActi
         const scope = button.closest('.chapter-copy')
         if (scope) void copyEmailFrom(scope)
       }
+    },
+    dispose() {
+      serviceReadout.dispose()
     },
   }
 }

@@ -68,25 +68,95 @@ export const chapterIndex = {
 
 export const beatsPerSecond = 124 / 60
 
-export interface InteriorPractical {
-  chapter: number
+export type LightLevel = 'practical' | 'screen' | 'street'
+
+export type LightWindow = readonly [riseStart: number, fullStart: number, fullEnd: number, fallEnd: number]
+
+export interface Breath {
+  period: number
+  depth: number
+}
+
+export interface LedgerLight {
+  id: string
+  lane: number
+  window: LightWindow
   position: Vec3
   color: string
   intensity: number
   distance: number
-  pulses: boolean
-  fill: number
+  level: LightLevel
+  breath?: Breath
 }
 
-export const interiorPracticals: readonly InteriorPractical[] = [
-  { chapter: chapterIndex.frontend, position: [0.8, floorBase.frontend + 2.6, 0.6], color: palette.warm, intensity: 8, distance: 12, pulses: false, fill: 7 },
-  { chapter: chapterIndex.backend, position: [2, floorBase.backend + 2.7, 1.5], color: '#BCCBFF', intensity: 22, distance: 15, pulses: false, fill: 7 },
-  { chapter: chapterIndex.cloud, position: [-2.8, floorBase.cloud + 2.8, 1], color: '#D2DAFF', intensity: 20, distance: 14, pulses: false, fill: 7 },
-  { chapter: chapterIndex.data, position: [0.5, floorBase.data + 2.8, 3.2], color: '#BCCBFF', intensity: 20, distance: 14, pulses: false, fill: 7 },
-  { chapter: chapterIndex.aiProducts, position: [-2.5, floorBase['ai-core'] + 3.2, 3.5], color: '#9FB2FF', intensity: 7, distance: 12, pulses: false, fill: 0 },
-  { chapter: chapterIndex.teaching, position: [0.5, floorBase.teaching + 3.3, 2.5], color: palette.warm, intensity: 10, distance: 13, pulses: false, fill: 0 },
-  { chapter: chapterIndex.about, position: [4.4, floorBase.lounge + 2, 3.4], color: palette.warm, intensity: 9, distance: 11, pulses: true, fill: 0 },
+export const dataAlarmBreath: Breath = { period: 4, depth: 0.2 }
+export const aiCoreBreath: Breath = { period: 4.8, depth: 0.12 }
+
+export const lightLaneCount = 6
+export const breathLimits = { minimumPeriod: 3.5, maximumDepth: 0.2 } as const
+
+const fromStart = [-1, -0.5] as const
+const toEnd = [11, 11.5] as const
+
+function around(chapter: number): LightWindow {
+  return [chapter - 0.85, chapter - 0.15, chapter + 0.15, chapter + 0.85]
+}
+
+const frontendHandover = 2.5
+const streetWindow: LightWindow = [...fromStart, 2.15, frontendHandover]
+const atelierEntry: LightWindow = [1.15, 1.85, 2.15, frontendHandover]
+const machineRoom: LightWindow = [frontendHandover, 2.85, 3.15, 3.85]
+const morningStreet: LightWindow = [9.15, 9.85, ...toEnd]
+
+const streetDoorLight = { position: [4, 2.4, 8.4], color: palette.warm, intensity: 16, distance: 16, level: 'street' } as const
+const streetLampLight = { position: [-8, 4.7, 11.65], color: palette.warm, intensity: 28, distance: 20, level: 'street' } as const
+const fillColor = '#B4C0E6'
+const facadeFillZ = 6.4
+
+export const lightLedger: readonly LedgerLight[] = [
+  { id: 'street-door', lane: 0, window: streetWindow, ...streetDoorLight, position: [...streetDoorLight.position] },
+  { id: 'backend-aisle-west', lane: 0, window: machineRoom, position: [-1.3, floorBase.backend + 2.45, -1.6], color: '#C4D4FF', intensity: 12, distance: 10, level: 'practical' },
+  { id: 'data-practical', lane: 0, window: around(chapterIndex.data), position: [0.2, floorBase.data + 2.1, 3.4], color: '#BCCBFF', intensity: 13, distance: 13, level: 'practical' },
+  { id: 'teaching-practical', lane: 0, window: around(chapterIndex.teaching), position: [0.5, floorBase.teaching + 1.6, 2.5], color: palette.warm, intensity: 7, distance: 12, level: 'practical' },
+
+  { id: 'street-lamp', lane: 1, window: [...fromStart, 1.15, 1.5], ...streetLampLight, position: [...streetLampLight.position] },
+  { id: 'frontend-fill', lane: 1, window: [1.5, 1.85, 2.15, frontendHandover], position: [0.8, floorBase.frontend + 2.2, facadeFillZ], color: fillColor, intensity: 7, distance: 16, level: 'practical' },
+  { id: 'backend-aisle-east', lane: 1, window: machineRoom, position: [4.6, floorBase.backend + 2.45, -1.6], color: '#C4D4FF', intensity: 12, distance: 10, level: 'practical' },
+  { id: 'data-fill', lane: 1, window: around(chapterIndex.data), position: [0.5, floorBase.data + 2.4, facadeFillZ], color: fillColor, intensity: 6, distance: 16, level: 'practical' },
+  { id: 'rocket-gantry-fill', lane: 1, window: around(chapterIndex.aiCoding), position: [13.6, floorBase.rocket + 2.4, 4.6], color: '#FF7A5E', intensity: 16, distance: 16, level: 'practical' },
+  { id: 'say-hi-door', lane: 1, window: morningStreet, ...streetDoorLight, position: [...streetDoorLight.position] },
+
+  { id: 'frontend-pendants-west', lane: 2, window: streetWindow, position: [-3.6, floorBase.frontend + 2.35, 3.75], color: palette.warm, intensity: 6.5, distance: 7.5, level: 'practical' },
+  { id: 'backend-fill', lane: 2, window: machineRoom, position: [1.7, floorBase.backend + 2.2, facadeFillZ], color: fillColor, intensity: 6, distance: 16, level: 'practical' },
+  { id: 'data-alarm', lane: 2, window: around(chapterIndex.data), position: [1.4, floorBase.data + 3.25, 0.6], color: palette.fusion, intensity: 2.2, distance: 4.5, level: 'practical', breath: dataAlarmBreath },
+  { id: 'rocket-deck-fill', lane: 2, window: around(chapterIndex.aiCoding), position: [9, floorBase.rocket + 1.2, 2.6], color: '#F0604A', intensity: 7, distance: 9, level: 'practical' },
+  { id: 'say-hi-lamp', lane: 2, window: morningStreet, ...streetLampLight, position: [...streetLampLight.position] },
+
+  { id: 'frontend-pendants-east', lane: 3, window: streetWindow, position: [3.8, floorBase.frontend + 2.35, 3.75], color: palette.warm, intensity: 6.5, distance: 7.5, level: 'practical' },
+  { id: 'cloud-practical', lane: 3, window: around(chapterIndex.cloud), position: [-2.2, floorBase.cloud + 2.5, 1.2], color: '#D2DAFF', intensity: 15, distance: 13, level: 'practical' },
+  { id: 'ai-core-signal', lane: 3, window: around(chapterIndex.aiProducts), position: [1.2, floorBase['ai-core'] + 1.9, 0.6], color: '#3D63FF', intensity: 22, distance: 15, level: 'practical', breath: aiCoreBreath },
+  { id: 'about-floor-lamp', lane: 3, window: around(chapterIndex.about), position: [6.32, floorBase.lounge + 1.25, 2.75], color: palette.warm, intensity: 7, distance: 9, level: 'practical' },
+
+  { id: 'frontend-practical', lane: 4, window: atelierEntry, position: [0.8, floorBase.frontend + 2.6, 0.6], color: palette.warm, intensity: 8, distance: 12, level: 'practical' },
+  { id: 'about-wall-spill', lane: 4, window: around(chapterIndex.about), position: [1.6, floorBase.lounge + 2.4, -2.4], color: '#8FA3D9', intensity: 14, distance: 16, level: 'practical' },
+  { id: 'cloud-fill', lane: 4, window: around(chapterIndex.cloud), position: [-2.8, floorBase.cloud + 2.4, facadeFillZ], color: fillColor, intensity: 7, distance: 16, level: 'practical' },
+  { id: 'ai-core-fill', lane: 4, window: around(chapterIndex.aiProducts), position: [-2.5, floorBase['ai-core'] + 2.2, facadeFillZ], color: '#9FB2FF', intensity: 5, distance: 14, level: 'practical' },
+
+  { id: 'frontend-screen-spill', lane: 5, window: streetWindow, position: [1, floorBase.frontend + 1.3, -0.9], color: '#E1DDD3', intensity: 3.6, distance: 7.5, level: 'screen' },
+  { id: 'cloud-blueprint-glow', lane: 5, window: around(chapterIndex.cloud), position: [1.4, floorBase.cloud + 1.1, -1.5], color: palette.signal, intensity: 2, distance: 6, level: 'practical' },
 ]
+
+export function lightWeight(window: LightWindow, progress: number): number {
+  const [riseStart, fullStart, fullEnd, fallEnd] = window
+  const rise = progress < fullStart ? smoothstep(riseStart, fullStart, progress) : 1
+  const fall = progress > fullEnd ? 1 - smoothstep(fullEnd, fallEnd, progress) : 1
+  return rise * fall
+}
+
+export function breathing(breath: Breath | undefined, time: number): number {
+  if (!breath) return 1
+  return 1 + breath.depth * Math.sin((time / breath.period) * Math.PI * 2)
+}
 
 export function clamp01(value: number): number {
   return Math.min(1, Math.max(0, value))
@@ -99,6 +169,12 @@ export function smoothstep(edgeStart: number, edgeEnd: number, value: number): n
 
 export function approach(current: number, target: number, rate: number, dt: number): number {
   return current + (target - current) * (1 - Math.exp(-rate * dt))
+}
+
+export const detailReach = 1.6
+
+export function nearChapter(progress: ConductorState, index: number, reach = detailReach): boolean {
+  return Math.abs(progress.smooth - index) < reach
 }
 
 export function chapterReveal(progress: ConductorState, index: number): number {

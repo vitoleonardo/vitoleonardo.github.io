@@ -13,7 +13,6 @@ import {
   MeshBasicMaterial,
   MeshStandardMaterial,
   PlaneGeometry,
-  PointLight,
   Points,
   ShaderMaterial,
   SphereGeometry,
@@ -67,12 +66,6 @@ const bulbRadius = 0.065
 const bulbY = 2.59
 const haloRadius = 0.32
 const beam = { topRadius: 0.27, bottomRadius: 1.05, top: shade.rim, bottom: deskTop + 0.03 }
-const pendantPairs: readonly Vec3[] = [[-3.6, 2.35, 3.75], [3.8, 2.35, 3.75]]
-const pendantPairIntensity = 6.5
-const pendantPairDistance = 7.5
-const screenSpillPosition: Vec3 = [1, 1.3, -0.9]
-const screenSpillIntensity = 3.6
-const screenSpillDistance = 7.5
 const screenFallbackColor = '#E9E5DB'
 const shelfItemColors = ['#8C7A62', '#C9C2B3', '#4A5466', '#7A3F33', '#2F3A33', '#B59A6A'] as const
 const dustPerCone = 90
@@ -347,7 +340,6 @@ export const createFrontendFloor: FloorFactory = (context) => {
   const dust = createConeDust(Math.round(dustPerCone * Math.max(quality.particles, 0.35)))
 
   const screenColors = screenSpecs.map((spec) => averageTextureColor(textures.work[spec.work], screenFallbackColor))
-  const spillColor = screenColors.reduce((sum, color) => sum.add(color), new Color()).multiplyScalar(1 / screenColors.length)
   const glow = createGlowTexture()
   const poolLayout = lightPoolLayout(screenColors)
   const poolMaterial = new MeshBasicMaterial({
@@ -360,14 +352,6 @@ export const createFrontendFloor: FloorFactory = (context) => {
   })
   const pools = instances(new PlaneGeometry(1, 1), poolMaterial, poolLayout.matrices, poolLayout.colors)
   pools.renderOrder = 1
-
-  const pendantLights = pendantPairs.map((position) => {
-    const light = new PointLight(palette.warm, 0, pendantPairDistance, 2)
-    light.position.set(...position)
-    return light
-  })
-  const screenSpill = new PointLight(spillColor, 0, screenSpillDistance, 2)
-  screenSpill.position.set(...screenSpillPosition)
 
   const backingGeometry = new RoundedBoxGeometry(screenWidth + 0.16, screenHeight + 0.16, 0.08, 2, 0.02)
   const screenGeometry = new PlaneGeometry(screenWidth, screenHeight)
@@ -416,8 +400,6 @@ export const createFrontendFloor: FloorFactory = (context) => {
     halos,
     dust.points,
     pools,
-    ...pendantLights,
-    screenSpill,
     ...proxies.map((proxy) => proxy.object),
   )
 
@@ -429,7 +411,6 @@ export const createFrontendFloor: FloorFactory = (context) => {
     frozenTime = time
     const level = 0.25 + 0.75 * practicals
     bulbs.set(luminance.bulb * level)
-    for (const light of pendantLights) light.intensity = pendantPairIntensity * level
     poolMaterial.color.setScalar(level)
     beamMaterial.uniforms.uIntensity.value = 0.11 * level
     haloMaterial.uniforms.uIntensity.value = 0.5 * level
@@ -438,15 +419,12 @@ export const createFrontendFloor: FloorFactory = (context) => {
     dust.material.uniforms.uOpacity.value = 0.9 * level
     monitorFaceMaterial.emissiveIntensity = luminance.screen * (0.35 + 0.4 * practicals)
 
-    let emphasisSum = 0
     for (const screen of screens) {
       screen.emphasis = frame.reducedMotion ? screen.target : approach(screen.emphasis, screen.target, 9, frame.dt)
       screen.material.emissiveIntensity = luminance.screen * (0.7 + 0.3 * practicals) + screen.emphasis * luminance.screenEmphasis
       screen.panel.position.y = screen.emphasis * 0.22
       screen.panel.position.z = screen.emphasis * 0.12
-      emphasisSum += screen.emphasis
     }
-    screenSpill.intensity = screenSpillIntensity * (0.7 + 0.3 * practicals) * (1 + emphasisSum * 0.25)
   }
 
   function dispose(): void {

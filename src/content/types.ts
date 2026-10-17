@@ -43,10 +43,12 @@ export interface UiStrings {
   contactLegalLabel: string
   thumbAlts: string[]
   floorsLabel: string
+  railNumbers: string[]
   railNames: string[]
   previewFloor: string
   copyEmail: string
   replayLaunch: string
+  homelabHeading: string
 }
 
 export interface Content {
@@ -55,8 +57,10 @@ export interface Content {
   nav: { links: Link[]; switchLabel: string }
   hero: {
     pill: string
-    name: string
-    line: string
+    pillDetail: string
+    eyebrow: string
+    headline: string
+    proofPoints: { value: string; label: string }[]
     buttons: { primary: Link; secondary: Link }
     footer: string
   }

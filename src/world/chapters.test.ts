@@ -67,7 +67,10 @@ const landmarkFrames: Record<ChapterId, LandmarkFrame> = {
   'stop-ai-products': { focal: [0, 17.6, -0.5], extent: [[-2, 16.5, -2], [2, 18.5, 2], [2, 16.5, -2], [-2, 18.5, 2]] },
   'stop-ai-coding': { focal: [11, 24.5, 0], extent: [[11, 22, 0], [11, 29, 0]] },
   'stop-teaching': { focal: [0, 26, 0], extent: [[3, 24.5, 0], [-3, 24.5, 0], [0, 27.5, 3], [0, 27.5, -3]] },
-  about: { focal: [-1, 29, -1.5], extent: [[-3, 28.5, -3.5], [1, 28.5, 0.5], [-3, 30.5, -3.5], [1, 30.5, 0.5]] },
+  about: {
+    focal: [2.6, 32.8, -5.4],
+    extent: [[-0.9, 29.4, -5.4], [6.1, 29.4, -5.4], [-0.9, 35.4, -5.4], [6.1, 35.4, -5.4], [5.1, 28.35, -3.9]],
+  },
   'say-hi': { focal: [-3, 40, -3], extent: [[-7, 28, 7], [7, 28, 7], [7, 28, -7]] },
 }
 
@@ -196,5 +199,32 @@ describe('composition', () => {
       expect(y).toBeLessThanOrEqual(BOTTOM_SHEET_TOP)
       expect(y).toBeGreaterThanOrEqual(MOBILE_RAIL_BOTTOM)
     }
+  })
+})
+
+describe('upper floors', () => {
+  const upperChapters: ChapterId[] = ['stop-ai-coding', 'stop-teaching', 'about', 'say-hi']
+  const portraitTopY = 35.42
+  const portraitHeight = 6
+  const faceTop: Vec3 = [2.6, portraitTopY - portraitHeight * (230 / 866), -5.4]
+  const faceChin: Vec3 = [2.6, portraitTopY - portraitHeight * (530 / 866), -5.4]
+  const about = chapters[chapterOrder.indexOf('about')]
+
+  test.each(upperChapters)('%s never drives the beat pulse', (id) => {
+    expect(chapters[chapterOrder.indexOf(id)].world.pulse).toBe(0)
+  })
+
+  test('about shows the portrait face at least 18 percent of the desktop viewport height', () => {
+    const pose = resolvePose(about, false)
+    const share = screenPosition(pose, faceChin, false).y - screenPosition(pose, faceTop, false).y
+    expect(share).toBeGreaterThanOrEqual(0.18)
+  })
+
+  test('about keeps the portrait face large in the upper half on mobile', () => {
+    const pose = resolvePose(about, true)
+    const top = screenPosition(pose, faceTop, true).y
+    const chin = screenPosition(pose, faceChin, true).y
+    expect(chin).toBeLessThan(BOTTOM_SHEET_TOP)
+    expect(chin - top).toBeGreaterThanOrEqual(0.1)
   })
 })

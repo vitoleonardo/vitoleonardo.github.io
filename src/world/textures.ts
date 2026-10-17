@@ -1,11 +1,13 @@
 import {
   CanvasTexture,
+  ClampToEdgeWrapping,
   Color,
   DataTexture,
   NoColorSpace,
   RepeatWrapping,
   SRGBColorSpace,
   TextureLoader,
+  type BufferGeometry,
   type ColorRepresentation,
   type ColorSpace,
   type Texture,
@@ -17,6 +19,7 @@ import type { SharedTextures } from './types'
 const concreteResolution = 1024
 const blueprintResolution = 1024
 const asphaltResolution = 512
+const blueprintAnisotropy = 8
 const slabResolution = 1024
 const concreteBase = [112, 116, 124] as const
 const slabBase = [108, 108, 110] as const
@@ -352,6 +355,238 @@ export function createWetAsphaltTextures(): { map: CanvasTexture; roughnessMap: 
   return { map: canvasTexture(color.canvas, SRGBColorSpace), roughnessMap: canvasTexture(rough.canvas, NoColorSpace) }
 }
 
+export const rackFaceColumns = 4
+
+type RackUnitDrawer = (context: CanvasRenderingContext2D, x: number, y: number, width: number, height: number, random: Random) => void
+
+const rackUnitPixels = 1024 / 46
+
+function drawVentField(context: CanvasRenderingContext2D, x: number, y: number, width: number, height: number, pitch: number): void {
+  context.fillStyle = '#07080A'
+  for (let row = y + pitch / 2; row < y + height - pitch / 3; row += pitch) {
+    for (let column = x + pitch / 2; column < x + width - pitch / 3; column += pitch) {
+      context.beginPath()
+      context.arc(column, row, pitch * 0.3, 0, Math.PI * 2)
+      context.fill()
+    }
+  }
+}
+
+function drawBezel(context: CanvasRenderingContext2D, x: number, y: number, width: number, height: number, tone: string): void {
+  context.fillStyle = tone
+  context.fillRect(x + 1, y + 1, width - 2, height - 2)
+  context.fillStyle = 'rgba(255, 255, 255, 0.07)'
+  context.fillRect(x + 1, y + 1, width - 2, 1)
+  context.fillStyle = 'rgba(0, 0, 0, 0.55)'
+  context.fillRect(x + 1, y + height - 2, width - 2, 1)
+  context.fillStyle = '#8A9098'
+  context.fillRect(x + 3, y + 3, 5, height - 6)
+  context.fillRect(x + width - 8, y + 3, 5, height - 6)
+}
+
+const drawServer: RackUnitDrawer = (context, x, y, width, height, random) => {
+  drawBezel(context, x, y, width, height, random() < 0.5 ? '#30343B' : '#3A3E46')
+  drawVentField(context, x + 12, y + 3, width * 0.42, height - 6, 5)
+  const bays = height > rackUnitPixels * 1.5 ? 8 : 4
+  const bayWidth = (width * 0.46) / bays
+  for (let bay = 0; bay < bays; bay += 1) {
+    const bayX = x + width * 0.5 + bay * bayWidth
+    context.fillStyle = '#1C1F24'
+    context.fillRect(bayX, y + 3, bayWidth - 2, height - 6)
+    context.fillStyle = '#8C939C'
+    context.fillRect(bayX + 1, y + 4, 2, height - 8)
+  }
+  context.fillStyle = '#C9CCD1'
+  context.fillRect(x + width * 0.5 - 14, y + height / 2 - 2, 9, 4)
+}
+
+const drawSwitch: RackUnitDrawer = (context, x, y, width, height) => {
+  drawBezel(context, x, y, width, height, '#2A2E34')
+  const portWidth = 6
+  for (let column = x + 16; column < x + width - 22; column += portWidth + 2) {
+    for (const row of [y + 3, y + height / 2 + 1]) {
+      context.fillStyle = '#050607'
+      context.fillRect(column, row, portWidth, height / 2 - 4)
+      context.fillStyle = '#3A3F46'
+      context.fillRect(column, row, portWidth, 1)
+    }
+  }
+}
+
+const drawPatchPanel: RackUnitDrawer = (context, x, y, width, height, random) => {
+  drawBezel(context, x, y, width, height, '#23262B')
+  const cordColors = ['#2F58FF', '#E9E5DB', '#3A4048', '#6C7480']
+  for (let column = x + 16; column < x + width - 18; column += 9) {
+    context.fillStyle = '#050607'
+    context.fillRect(column, y + 5, 6, height - 10)
+    if (random() < 0.55) {
+      context.fillStyle = cordColors[Math.floor(random() * cordColors.length)]
+      context.fillRect(column + 1, y + height / 2, 4, height / 2 - 2)
+    }
+  }
+}
+
+const drawStorage: RackUnitDrawer = (context, x, y, width, height) => {
+  drawBezel(context, x, y, width, height, '#2C3036')
+  const columns = 4
+  const rows = 3
+  const trayWidth = (width - 28) / columns
+  const trayHeight = (height - 8) / rows
+  for (let row = 0; row < rows; row += 1) {
+    for (let column = 0; column < columns; column += 1) {
+      const trayX = x + 14 + column * trayWidth
+      const trayY = y + 4 + row * trayHeight
+      context.fillStyle = '#3D424A'
+      context.fillRect(trayX + 1, trayY + 1, trayWidth - 2, trayHeight - 2)
+      drawVentField(context, trayX + 4, trayY + 3, trayWidth * 0.55, trayHeight - 6, 4)
+      context.fillStyle = '#7C828A'
+      context.fillRect(trayX + trayWidth - 8, trayY + 3, 3, trayHeight - 6)
+    }
+  }
+}
+
+const drawBlank: RackUnitDrawer = (context, x, y, width, height) => {
+  context.fillStyle = '#1F2226'
+  context.fillRect(x + 1, y + 1, width - 2, height - 2)
+  context.fillStyle = 'rgba(255, 255, 255, 0.05)'
+  context.fillRect(x + 1, y + 1, width - 2, 1)
+  context.fillStyle = '#6A7078'
+  const screwY = y + height / 2 - 1
+  context.fillRect(x + 4, screwY, 3, 3)
+  context.fillRect(x + width - 7, screwY, 3, 3)
+}
+
+const frontUnits: readonly (readonly [RackUnitDrawer, number])[] = [
+  [drawServer, 1],
+  [drawServer, 2],
+  [drawSwitch, 1],
+  [drawPatchPanel, 1],
+  [drawStorage, 4],
+  [drawBlank, 1],
+  [drawServer, 1],
+  [drawServer, 2],
+]
+
+function drawRackFront(context: CanvasRenderingContext2D, x: number, width: number, height: number, random: Random): void {
+  context.fillStyle = '#08090B'
+  context.fillRect(x, 0, width, height)
+  let cursor = rackUnitPixels * 1.5
+  while (cursor < height - rackUnitPixels * 2) {
+    const [draw, units] = frontUnits[Math.floor(random() * frontUnits.length)]
+    const unitHeight = units * rackUnitPixels
+    if (cursor + unitHeight > height - rackUnitPixels) break
+    if (random() < 0.12) {
+      drawBlank(context, x + 6, cursor, width - 12, rackUnitPixels, random)
+      cursor += rackUnitPixels
+      continue
+    }
+    draw(context, x + 6, cursor, width - 12, unitHeight, random)
+    if (random() < 0.4) {
+      context.fillStyle = '#D8D4CB'
+      context.fillRect(x + width - 40, cursor + 3, 14, 5)
+    }
+    cursor += unitHeight
+  }
+}
+
+function drawRackRear(context: CanvasRenderingContext2D, x: number, width: number, height: number, random: Random): void {
+  context.fillStyle = '#0A0B0D'
+  context.fillRect(x, 0, width, height)
+  let cursor = rackUnitPixels * 1.5
+  while (cursor < height - rackUnitPixels * 3) {
+    const units = random() < 0.5 ? 1 : 2
+    const unitHeight = units * rackUnitPixels
+    context.fillStyle = '#1A1D21'
+    context.fillRect(x + 6, cursor + 1, width - 12, unitHeight - 2)
+    const fanRadius = unitHeight * 0.38
+    for (let fan = 0; fan < 3; fan += 1) {
+      const fanX = x + 26 + fan * (fanRadius * 2 + 6)
+      context.strokeStyle = '#3B4047'
+      context.lineWidth = 1.5
+      context.beginPath()
+      context.arc(fanX, cursor + unitHeight / 2, fanRadius, 0, Math.PI * 2)
+      context.stroke()
+      context.fillStyle = '#050607'
+      context.beginPath()
+      context.arc(fanX, cursor + unitHeight / 2, fanRadius * 0.8, 0, Math.PI * 2)
+      context.fill()
+    }
+    context.fillStyle = '#2A2E34'
+    context.fillRect(x + width - 52, cursor + 3, 40, unitHeight - 6)
+    drawVentField(context, x + width - 50, cursor + 4, 36, unitHeight - 8, 4)
+    cursor += unitHeight + 2
+  }
+  const cordColors = ['#2B2F35', '#3A3F46', '#1F2D5C', '#4A4F57']
+  for (let cord = 0; cord < 9; cord += 1) {
+    const cordX = x + 30 + random() * (width - 60)
+    context.strokeStyle = cordColors[cord % cordColors.length]
+    context.lineWidth = 3 + random() * 3
+    context.beginPath()
+    context.moveTo(cordX, 0)
+    context.bezierCurveTo(cordX + (random() - 0.5) * 50, height * 0.3, cordX + (random() - 0.5) * 70, height * 0.6, x + width - 18, height * (0.2 + random() * 0.7))
+    context.stroke()
+  }
+}
+
+export function createRackFaceTexture(): CanvasTexture {
+  const size = 1024
+  const { canvas, context } = createPixelCanvas(size)
+  const random = createRandom(4096)
+  const columnWidth = size / rackFaceColumns
+  for (let column = 0; column < rackFaceColumns - 1; column += 1) drawRackFront(context, column * columnWidth, columnWidth, size, random)
+  drawRackRear(context, (rackFaceColumns - 1) * columnWidth, columnWidth, size, random)
+  const texture = canvasTexture(canvas, SRGBColorSpace)
+  texture.wrapS = ClampToEdgeWrapping
+  texture.wrapT = ClampToEdgeWrapping
+  return texture
+}
+
+export interface LabelStyle {
+  ink: string
+  paper: string | null
+  weight: number
+  size: number
+}
+
+const labelFont = "'JetBrains Mono Variable', 'JetBrains Mono', ui-monospace, monospace"
+
+export function createLabelAtlas(labels: readonly string[], style: LabelStyle): CanvasTexture {
+  const width = 1024
+  const rowHeight = 128
+  const canvas = document.createElement('canvas')
+  canvas.width = width
+  canvas.height = rowHeight * labels.length
+  const context = canvas.getContext('2d')
+  if (!context) throw new Error('2D canvas is unavailable')
+  const texture = canvasTexture(canvas, SRGBColorSpace)
+  texture.wrapS = ClampToEdgeWrapping
+  texture.wrapT = ClampToEdgeWrapping
+  const font = `${style.weight} ${style.size}px ${labelFont}`
+  const draw = () => {
+    context.clearRect(0, 0, canvas.width, canvas.height)
+    if (style.paper) {
+      context.fillStyle = style.paper
+      context.fillRect(0, 0, canvas.width, canvas.height)
+    }
+    context.fillStyle = style.ink
+    context.font = font
+    context.textAlign = 'center'
+    context.textBaseline = 'middle'
+    labels.forEach((label, row) => context.fillText(label.toUpperCase(), width / 2, rowHeight * (row + 0.5)))
+    texture.needsUpdate = true
+  }
+  draw()
+  if ('fonts' in document) void document.fonts.load(font).then(draw, () => undefined)
+  return texture
+}
+
+export function labelRowUVs(geometry: BufferGeometry, row: number, rows: number): BufferGeometry {
+  const uv = geometry.getAttribute('uv')
+  for (let index = 0; index < uv.count; index += 1) uv.setY(index, (rows - 1 - row + uv.getY(index)) / rows)
+  uv.needsUpdate = true
+  return geometry
+}
+
 export function createGlowTexture(): CanvasTexture {
   const size = 128
   const { canvas, context } = createPixelCanvas(size)
@@ -411,6 +646,7 @@ export async function createSharedTextures(renderer: WebGLRenderer): Promise<Sha
     loadColorTexture(loader, imagePaths.fakhari),
     loadColorTexture(loader, imagePaths.portrait),
   ])
+  blueprint.anisotropy = Math.min(blueprintAnisotropy, renderer.capabilities.getMaxAnisotropy())
   const textures: SharedTextures = { concrete, blueprint, work: { hih, baysal, fakhari }, portrait }
   for (const texture of [concrete.map, concrete.normalMap, concrete.roughnessMap, blueprint, hih, baysal, fakhari, portrait]) {
     renderer.initTexture(texture)

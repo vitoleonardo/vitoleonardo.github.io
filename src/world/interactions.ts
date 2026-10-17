@@ -365,6 +365,7 @@ export function initInteractions(options: InteractionOptions): Interactions {
     },
     dispose() {
       lifetime.abort()
+      actions.dispose()
       stopChapters()
       stopFrameListener?.()
       for (const entry of entries.values()) window.clearTimeout(entry.pulseTimer)

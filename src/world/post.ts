@@ -12,9 +12,9 @@ import { RenderPass } from 'three/addons/postprocessing/RenderPass.js'
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 
 const BLOOM_ACTIVE_THRESHOLD = 0.01
-const BLOOM_MAX_STRENGTH = 1.1
-const BLOOM_RADIUS = 0.55
-const BLOOM_LUMINANCE_THRESHOLD = 0.82
+const BLOOM_MAX_STRENGTH = 0.9
+const BLOOM_RADIUS = 0.32
+const BLOOM_LUMINANCE_THRESHOLD = 0.95
 const MULTISAMPLE_COUNT = 4
 
 export interface PostPipeline {

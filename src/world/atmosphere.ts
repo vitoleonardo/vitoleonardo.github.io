@@ -28,7 +28,7 @@ import {
   type WebGLRenderTarget,
 } from 'three'
 import { block, blockBetween, composeMatrix, createRandom, instances, merge, place } from './geometry'
-import { beatEnvelope, disposeTree, interiorPracticals, palette, smoothstep } from './floors/kit'
+import { breathing, clamp01, disposeTree, lightLaneCount, lightLedger, lightWeight, palette, smoothstep, type LedgerLight, type LightLevel } from './floors/kit'
 import type { FloorContext, FloorSet, FrameState } from './types'
 
 const fogDensityRange = [0.004, 0.03] as const
@@ -39,22 +39,47 @@ const rainBox = [46, 30, 46] as const
 const timeWrap = 600
 const keyTarget = [2, 14, 0] as const
 const keyOffset = [-28, 52, 44] as const
-const fillColor = '#B4C0E6'
-const fillFrontZ = 6.4
-const fillDrop = 0.4
-const fillDistance = 16
 const keyStrength = 2.1
 const hemisphereStrength = 1.35
 const environmentStrength = 0.85
 const skyTint = '#566797'
 const groundBounce = '#1D1B1E'
 
-const skyColors = {
-  zenith: '#070A12',
-  horizon: '#1A2335',
-  cityGlow: '#2B2430',
-  dawnZenith: '#2A3654',
-  dawnHorizon: palette.dawn,
+interface SkyStop {
+  at: number
+  zenith: string
+  sky: string
+  low: string
+  horizon: string
+  glow: string
+  cityGlow: string
+  fog: string
+  haze: string
+}
+
+const skyStops: readonly SkyStop[] = [
+  { at: 0, zenith: '#05080F', sky: '#0D1425', low: '#182031', horizon: '#1F2638', glow: '#000000', cityGlow: '#2B2430', fog: '#121A28', haze: '#433D50' },
+  { at: 0.45, zenith: '#091235', sky: '#1B2F72', low: '#4A5F96', horizon: '#C08463', glow: '#B4643A', cityGlow: '#1C1824', fog: '#1C2848', haze: '#3A4C7E' },
+  { at: 1, zenith: '#33589C', sky: '#7397C8', low: '#BAC6D6', horizon: '#EBC7A4', glow: '#B88250', cityGlow: '#000000', fog: '#56627C', haze: '#646C80' },
+]
+
+type SkyColors = Record<Exclude<keyof SkyStop, 'at'>, Color>
+
+const skyColorKeys = ['zenith', 'sky', 'low', 'horizon', 'glow', 'cityGlow', 'fog', 'haze'] as const
+
+function skyColorsOf(stop: SkyStop): SkyColors {
+  return Object.fromEntries(skyColorKeys.map((key) => [key, new Color(stop[key])])) as SkyColors
+}
+
+const skyStopColors = skyStops.map(skyColorsOf)
+
+function sampleSky(dawn: number, target: SkyColors): SkyColors {
+  const level = clamp01(dawn)
+  const upper = Math.max(1, skyStops.findIndex((stop) => stop.at >= level))
+  const lower = upper - 1
+  const blend = smoothstep(skyStops[lower].at, skyStops[upper].at, level)
+  for (const key of skyColorKeys) target[key].copy(skyStopColors[lower][key]).lerp(skyStopColors[upper][key], blend)
+  return target
 }
 
 const skyVertexShader = `
@@ -68,24 +93,27 @@ void main() {
 
 const skyFragmentShader = `
 uniform vec3 uZenith;
+uniform vec3 uSky;
+uniform vec3 uLow;
 uniform vec3 uHorizon;
+uniform vec3 uGlow;
 uniform vec3 uCityGlow;
-uniform vec3 uDawnZenith;
-uniform vec3 uDawnHorizon;
 uniform vec3 uRed;
 uniform vec3 uSunDirection;
-uniform float uDawn;
 uniform float uRedAmount;
 varying vec3 vDirection;
 void main() {
   vec3 direction = normalize(vDirection);
   float height = direction.y;
   float above = max(height, 0.0);
-  vec3 night = mix(uHorizon, uZenith, smoothstep(-0.02, 0.55, height));
-  night += uCityGlow * exp(-above * 12.0);
-  vec3 dawn = mix(uDawnHorizon, uDawnZenith, smoothstep(-0.02, 0.28, height));
-  dawn += uDawnHorizon * pow(max(dot(direction, uSunDirection), 0.0), 10.0) * 0.6;
-  vec3 color = mix(night, dawn, uDawn * uDawn * (3.0 - 2.0 * uDawn));
+  vec3 color = mix(uHorizon, uLow, smoothstep(0.0, 0.09, above));
+  color = mix(color, uSky, smoothstep(0.05, 0.35, above));
+  color = mix(color, uZenith, smoothstep(0.25, 0.9, above));
+  vec3 sun = normalize(uSunDirection);
+  float towardSun = max(dot(normalize(direction.xz + vec2(1e-5, 0.0)), normalize(sun.xz)), 0.0);
+  color += uGlow * pow(towardSun, 3.0) * exp(-above * 9.0);
+  color += uGlow * 0.35 * pow(max(dot(direction, sun), 0.0), 60.0);
+  color += uCityGlow * exp(-above * 12.0);
   color = mix(color, color * 0.55 + uRed * 0.3 * exp(-above * 5.0), uRedAmount);
   color = mix(color, uHorizon * 0.55, smoothstep(0.0, -0.12, height));
   gl_FragColor = vec4(color, 1.0);
@@ -162,17 +190,17 @@ void main() {
 }
 `
 
-function createSkyMaterial(): ShaderMaterial {
+function createSkyMaterial(colors: SkyColors): ShaderMaterial {
   return new ShaderMaterial({
     uniforms: {
-      uZenith: { value: new Color(skyColors.zenith) },
-      uHorizon: { value: new Color(skyColors.horizon) },
-      uCityGlow: { value: new Color(skyColors.cityGlow) },
-      uDawnZenith: { value: new Color(skyColors.dawnZenith) },
-      uDawnHorizon: { value: new Color(skyColors.dawnHorizon) },
+      uZenith: { value: colors.zenith },
+      uSky: { value: colors.sky },
+      uLow: { value: colors.low },
+      uHorizon: { value: colors.horizon },
+      uGlow: { value: colors.glow },
+      uCityGlow: { value: colors.cityGlow },
       uRed: { value: new Color(palette.fusion) },
       uSunDirection: { value: [0.42, 0.05, -0.9] },
-      uDawn: { value: 0 },
       uRedAmount: { value: 0 },
     },
     vertexShader: skyVertexShader,
@@ -360,10 +388,10 @@ export function createAtmosphere(context: FloorContext): FloorSet & { fog: FogEx
   const { scene, camera, quality, renderer } = context
   const root = new Group()
   root.name = 'atmosphere'
-  const fogNight = new Color('#121A28')
-  const fog = new FogExp2(fogNight, fogDensityRange[0])
+  const skyState = skyColorsOf(skyStops[0])
+  const fog = new FogExp2(skyState.fog.clone(), fogDensityRange[0])
 
-  const skyMaterial = createSkyMaterial()
+  const skyMaterial = createSkyMaterial(skyState)
   const sky = new Mesh(new SphereGeometry(skyRadius, 48, 24), skyMaterial)
   sky.frustumCulled = false
   sky.renderOrder = -10
@@ -383,15 +411,12 @@ export function createAtmosphere(context: FloorContext): FloorSet & { fog: FogEx
   )
 
   const silhouetteBase = new Color('#05070C')
-  const nightHaze = new Color(skyColors.horizon).add(new Color(skyColors.cityGlow))
-  const dawnHaze = new Color(skyColors.dawnHorizon)
-  const hazeColor = new Color()
   const silhouetteMaterial = new MeshBasicMaterial({ color: silhouetteBase.clone(), fog: false })
   const landmarkMaterial = new MeshBasicMaterial({ color: silhouetteBase.clone(), fog: false })
   const layout = skylineLayout()
   const skyline = instances(new BoxGeometry(1, 1, 1), silhouetteMaterial, layout.blocks)
   const landmarks = new Mesh(merge([...cathedralGeometry(), ...coloniusGeometry(), ...craneHouseGeometry()]), landmarkMaterial)
-  const windowMaterial = new MeshBasicMaterial({ fog: false })
+  const windowMaterial = new MeshBasicMaterial({ fog: false, transparent: true })
   const skylineWindows = instances(new PlaneGeometry(1, 1), windowMaterial, layout.windows, layout.windowColors)
 
   const rain = createRain(rainCapacity)
@@ -418,18 +443,17 @@ export function createAtmosphere(context: FloorContext): FloorSet & { fog: FogEx
   const skyColor = new Color(skyTint)
   const hemisphere = new HemisphereLight(skyColor, groundBounce, hemisphereStrength)
 
-  const practicalByChapter = new Map(interiorPracticals.map((practical) => [practical.chapter, practical]))
-  const interiorLights = [new PointLight(palette.warm, 0, 12, 2), new PointLight(palette.warm, 0, 12, 2)]
-  const fillLight = new PointLight(fillColor, 0, fillDistance, 2)
+  const lanes = Array.from({ length: lightLaneCount }, (_, lane) => ({
+    light: new PointLight(palette.warm, 0, 10, 2),
+    ledger: lightLedger.filter((entry) => entry.lane === lane),
+  }))
+  const levels: Record<LightLevel, number> = { practical: 1, screen: 1, street: 1 }
 
-  root.add(sky, ground, river, skyline, landmarks, skylineWindows, rain.lines, dust.points, key, key.target, hemisphere, ...interiorLights, fillLight)
+  root.add(sky, ground, river, skyline, landmarks, skylineWindows, rain.lines, dust.points, key, key.target, hemisphere, ...lanes.map((lane) => lane.light))
 
   const cameraPosition = new Vector3()
-  const fillPosition = new Vector3()
-  const fillSource = new Vector3()
-
-  const fogDawn = new Color('#5A5566')
   const fogRed = new Color('#2A0E0D')
+  const afterBlueHour = (dawn: number) => smoothstep(0.35, 1, dawn)
   let frozenTime = 0
 
   function update(frame: FrameState): void {
@@ -438,17 +462,18 @@ export function createAtmosphere(context: FloorContext): FloorSet & { fog: FogEx
     frozenTime = time
 
     fog.density = fogDensityRange[0] + world.fog * (fogDensityRange[1] - fogDensityRange[0])
-    fog.color.copy(fogNight).lerp(fogDawn, world.dawn * 0.55).lerp(fogRed, world.red * 0.3)
+    sampleSky(world.dawn, skyState)
+    fog.color.copy(skyState.fog).lerp(fogRed, world.red * 0.3)
 
     sky.position.copy(camera.getWorldPosition(cameraPosition))
-    skyMaterial.uniforms.uDawn.value = world.dawn
     skyMaterial.uniforms.uRedAmount.value = world.red
 
-    const haze = (0.08 + world.fog * 0.3) * (1 - world.dawn * 0.6)
-    hazeColor.copy(nightHaze).lerp(dawnHaze, smoothstep(0, 1, world.dawn))
-    silhouetteMaterial.color.copy(silhouetteBase).lerp(hazeColor, haze)
-    landmarkMaterial.color.copy(silhouetteBase).lerp(hazeColor, Math.min(0.85, haze + 0.25))
+    const haze = 0.08 + world.fog * 0.3 + world.dawn * 0.15
+    silhouetteMaterial.color.copy(silhouetteBase).lerp(skyState.haze, haze)
+    landmarkMaterial.color.copy(silhouetteBase).lerp(skyState.haze, Math.min(0.85, haze + 0.25))
     windowMaterial.color.setScalar((1 - world.fog * 0.55) * (1 - world.dawn * 0.7))
+    windowMaterial.opacity = 1 - smoothstep(0.55, 0.9, world.dawn)
+    skylineWindows.visible = windowMaterial.opacity > 0.01
 
     const rainActive = world.rain > 0.01
     rain.lines.visible = rainActive
@@ -462,38 +487,35 @@ export function createAtmosphere(context: FloorContext): FloorSet & { fog: FogEx
     dust.points.geometry.setDrawRange(0, Math.round(dustCapacity * quality.particles))
 
     key.intensity = keyStrength * world.key
-    key.color.copy(moonColor).lerp(dawnColor, world.dawn * 0.7).lerp(redColor, world.red * 0.25)
+    key.color.copy(moonColor).lerp(dawnColor, afterBlueHour(world.dawn) * 0.7).lerp(redColor, world.red * 0.25)
     key.castShadow = quality.shadows > 0
     hemisphere.intensity = hemisphereStrength * world.ambient
-    hemisphere.color.copy(skyColor).lerp(dawnColor, world.dawn * 0.5)
+    hemisphere.color.copy(skyColor).lerp(dawnColor, afterBlueHour(world.dawn) * 0.5)
     scene.environmentIntensity = environmentStrength * world.ambient + world.dawn * 0.2
 
-    const lowerChapter = Math.floor(frame.progress.smooth)
-    const blend = smoothstep(0.15, 0.85, frame.progress.smooth - lowerChapter)
-    const beat = reducedMotion ? 0 : beatEnvelope(time)
-    const practicalLevel = 0.25 + 0.75 * world.practicals
-    let fillWeight = 0
-    fillPosition.set(0, 0, 0)
-    interiorLights.forEach((light, slot) => {
-      const chapter = lowerChapter % 2 === slot ? lowerChapter : lowerChapter + 1
-      const weight = chapter === lowerChapter ? 1 - blend : blend
-      const practical = practicalByChapter.get(chapter)
-      if (!practical) {
-        light.intensity = 0
-        return
+    levels.practical = 0.25 + 0.75 * world.practicals
+    levels.screen = 0.7 + 0.3 * world.practicals
+    levels.street = 1 - world.dawn * 0.45
+    for (const lane of lanes) {
+      let active: LedgerLight | undefined
+      let weight = 0
+      for (const entry of lane.ledger) {
+        const entryWeight = lightWeight(entry.window, frame.progress.smooth)
+        if (entryWeight > weight) {
+          weight = entryWeight
+          active = entry
+        }
       }
-      light.position.set(...practical.position)
-      light.color.set(practical.color)
-      light.distance = practical.distance
-      const pulse = practical.pulses ? 1 + world.pulse * 0.3 * beat : 1
-      light.intensity = practical.intensity * weight * practicalLevel * pulse
-      const fill = practical.fill * weight
-      fillSource.set(practical.position[0], practical.position[1] - fillDrop, fillFrontZ)
-      fillPosition.addScaledVector(fillSource, fill)
-      fillWeight += fill
-    })
-    fillLight.intensity = fillWeight * practicalLevel
-    if (fillWeight > 0) fillLight.position.copy(fillPosition).divideScalar(fillWeight)
+      if (!active) {
+        lane.light.intensity = 0
+        continue
+      }
+      lane.light.position.set(...active.position)
+      lane.light.color.set(active.color)
+      lane.light.distance = active.distance
+      const breath = reducedMotion ? 1 : breathing(active.breath, frame.time)
+      lane.light.intensity = active.intensity * weight * levels[active.level] * breath
+    }
   }
 
   function dispose(): void {

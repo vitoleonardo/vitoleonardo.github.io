@@ -30,14 +30,18 @@
   --header-height: 64px;
   --header-fade: 48px;
   --rail-height: 24px;
-  --sheet-top: 50svh;
+  --sheet-top: 34svh;
   --hit: 44px;
+  --leader-length: 34px;
+  --service-tag-height: 2.25rem;
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
 
   --paper: #ecebe6;
   --ink: #111111;
   --blue: #1f4bff;
   --blue-mist: #a9bbff;
+  --blue-soft: #7c95ff;
+  --blueprint: color-mix(in srgb, var(--blue-soft) 55%, transparent);
   --red: #b8251e;
   --margin: 48px;
 }
@@ -47,5 +51,7 @@
     --margin: 20px;
     --header-height: 56px;
     --header-fade: 40px;
+    --leader-length: 22px;
+    --service-tag-height: 2.125rem;
   }
 }

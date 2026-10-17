@@ -3,6 +3,7 @@ import {
   BoxGeometry,
   BufferGeometry,
   Color,
+  CylinderGeometry,
   Float32BufferAttribute,
   FogExp2,
   Group,
@@ -11,9 +12,15 @@ import {
   MeshBasicMaterial,
   MeshStandardMaterial,
   PlaneGeometry,
-  PointLight,
+  Quaternion,
   ShaderMaterial,
+  SphereGeometry,
+  TorusGeometry,
+  Vector3,
   Vector4,
+  InstancedBufferAttribute,
+  UniformsLib,
+  UniformsUtils,
   type InstancedMesh,
   type Texture,
 } from 'three'
@@ -63,7 +70,12 @@ const deckOpening = [-4, 4] as const
 const doorHalfWidth = 1.6
 const doorX = 4
 const doorHeight = 3
-const mullionWidth = 0.05
+const mullion = { web: 0.045, depth: 0.2, cap: 0.09, capDepth: 0.035 } as const
+const bollardXs = [-15, -13, -11, -3.4, -1.8, 10.2, 12, 13.8] as const
+const bollardZ = 10.55
+const bikeStandXs = [-6.2, -5.2, -4.2] as const
+const bikeStandZ = 9.2
+const litterBin = [1.2, 10.4] as const
 const interiorEdgeDimming = 0.6
 const kerbZ = 11
 
@@ -79,12 +91,18 @@ export const entrance = {
   braceLow: [2.1, doorHeight + 0.5, half + 1.6],
   braceHigh: [2.1, doorHeight + 1.9, half + 0.2],
 } as const satisfies Record<string, number | Vec3>
+const coreStair = {
+  landingZ: towerSpec.core.maxZ - 0.8,
+  turnZ: towerSpec.core.minZ + 0.8,
+  steps: 12,
+  splitX: -5.6,
+  landingThickness: 0.22,
+} as const
 const roadY = -0.14
 const streetHalfWidth = 40
 const streetFarZ = 60
 const lampXs = [-30, -18, -8, 8, 18, 30] as const
 const lampZ = 10.6
-const litLampX = -8
 const roofHole = 1.8
 const concreteTile = 2.4
 const anisotropyLevel = 8
@@ -245,25 +263,55 @@ function coreGeometry(): BufferGeometry[] {
     blockBetween([-6.2, roof + 2.2, maxZ - 0.2], [-5, hutTop, maxZ]),
     blockBetween([-outer, hutTop, -outer], [maxX, hutTop + 0.3, maxZ]),
   ]
-  const landingZ = maxZ - 0.8
-  const turnZ = minZ + 0.8
-  const flightRun = landingZ - turnZ
-  const steps = 12
-  const rise = storey / 2 / steps
-  const run = flightRun / steps
-  const tread = 0.22
-  const splitX = -5.6
   for (let level = 0; level < 7; level += 1) {
     const base = level * storey
-    for (let step = 0; step < steps; step += 1) {
-      const climbTop = base + rise * (step + 1)
-      pieces.push(block([splitX - minX, rise + tread, run], [(minX + splitX) / 2, climbTop - (rise + tread) / 2, landingZ - run * (step + 0.5)]))
-      const returnTop = base + storey / 2 + rise * (step + 1)
-      pieces.push(block([wallInner - splitX, rise + tread, run], [(splitX + wallInner) / 2, returnTop - (rise + tread) / 2, turnZ + run * (step + 0.5)]))
-    }
-    pieces.push(blockBetween([minX, base + storey / 2 - tread, minZ], [wallInner, base + storey / 2, turnZ]))
+    pieces.push(blockBetween([minX, base + storey / 2 - coreStair.landingThickness, minZ], [wallInner, base + storey / 2, coreStair.turnZ]))
   }
   return pieces
+}
+
+function plateBetween(from: Vec3, to: Vec3, width: number, depth: number): BufferGeometry {
+  const start = new Vector3(...from)
+  const end = new Vector3(...to)
+  const direction = end.clone().sub(start)
+  const length = direction.length()
+  const orientation = new Quaternion().setFromUnitVectors(new Vector3(0, 1, 0), direction.normalize())
+  return new BoxGeometry(width, length, depth).applyMatrix4(new Matrix4().compose(start.add(end).multiplyScalar(0.5), orientation, new Vector3(1, 1, 1)))
+}
+
+function coreStairGeometry(): BufferGeometry {
+  const { minX } = towerSpec.core
+  const wallInner = towerSpec.core.maxX - 0.25
+  const { landingZ, turnZ, steps, splitX } = coreStair
+  const rise = storey / 2 / steps
+  const run = (landingZ - turnZ) / steps
+  const pieces: BufferGeometry[] = []
+  const flight = (fromX: number, toX: number, base: number, startZ: number, direction: -1 | 1) => {
+    for (let step = 0; step < steps; step += 1) {
+      const top = base + rise * (step + 1)
+      const z = startZ + direction * run * (step + 0.5)
+      pieces.push(block([toX - fromX - 0.02, 0.04, run + 0.03], [(fromX + toX) / 2, top - 0.02, z]))
+      pieces.push(block([toX - fromX - 0.02, 0.025, 0.03], [(fromX + toX) / 2, top - 0.0125, z - direction * (run / 2)]))
+    }
+    const lowZ = startZ
+    const highZ = startZ + direction * run * steps
+    for (const x of [fromX + 0.03, toX - 0.03]) {
+      pieces.push(plateBetween([x, base - 0.12, lowZ], [x, base + storey / 2 - 0.12, highZ], 0.03, 0.24))
+    }
+    const railX = splitX + (fromX < splitX ? -0.04 : 0.04)
+    pieces.push(cylinderBetween([railX, base + 0.95, lowZ], [railX, base + storey / 2 + 0.95, highZ], 0.02, 8))
+    for (const t of [0.15, 0.5, 0.85]) {
+      const postZ = lowZ + (highZ - lowZ) * t
+      const postBase = base + (storey / 2) * t
+      pieces.push(cylinderBetween([railX, postBase, postZ], [railX, postBase + 0.95, postZ], 0.014, 6))
+    }
+  }
+  for (let level = 0; level < 7; level += 1) {
+    const base = level * storey
+    flight(minX, splitX, base, landingZ, -1)
+    flight(splitX, wallInner, base + storey / 2, turnZ, 1)
+  }
+  return merge(pieces)
 }
 
 function shellGeometry(): BufferGeometry {
@@ -308,15 +356,6 @@ function slabGeometry(): BufferGeometry {
 function facadeMatrices(): Matrix4[] {
   const bars: Matrix4[] = []
   const bar = (size: Vec3, center: Vec3) => bars.push(composeMatrix(center, [0, 0, 0], size))
-  const mullionZ = half + 0.26
-  for (let column = 0; column <= 7; column += 1) {
-    const x = -half + column * 2
-    const bottom = Math.abs(x - doorX) < doorHalfWidth ? doorHeight + 0.3 : 0
-    bar([mullionWidth, roof - slab - bottom, 0.16], [x, (bottom + roof - slab) / 2, mullionZ])
-  }
-  for (let level = 1; level < 6; level += 1) {
-    bar([half * 2, 0.05, 0.06], [0, level * storey + 1.05, mullionZ + 0.05])
-  }
   const crownMid = (crownSill + roof - slab) / 2
   const crownHeight = roof - slab - crownSill
   for (const side of [-1, 1]) {
@@ -336,6 +375,59 @@ function facadeMatrices(): Matrix4[] {
   return bars
 }
 
+function curtainWallGeometry(): BufferGeometry {
+  const pieces: BufferGeometry[] = []
+  const webBack = half + 0.16
+  const webFront = webBack + mullion.depth
+  const top = roof - slab
+  for (let column = 0; column <= 7; column += 1) {
+    const x = -half + column * 2
+    const bottom = Math.abs(x - doorX) < doorHalfWidth ? doorHeight + 0.3 : 0
+    pieces.push(blockBetween([x - mullion.web / 2, bottom, webBack], [x + mullion.web / 2, top, webFront]))
+    pieces.push(blockBetween([x - mullion.cap / 2, bottom, webFront], [x + mullion.cap / 2, top, webFront + mullion.capDepth]))
+    for (let level = 1; level < towerSpec.levels - 1; level += 1) {
+      const slabTop = level * storey
+      if (slabTop > top) continue
+      pieces.push(blockBetween([x - 0.08, slabTop - slab + 0.04, slabFront - 0.02], [x + 0.08, slabTop - 0.06, webBack + 0.02]))
+    }
+  }
+  for (let level = 1; level < 6; level += 1) {
+    const y = level * storey + 1.05
+    pieces.push(blockBetween([-half, y - 0.03, webBack + 0.03], [half, y + 0.03, webFront - 0.02]))
+    pieces.push(blockBetween([-half, y - 0.04, webFront - 0.02], [half, y + 0.04, webFront + mullion.capDepth * 0.7]))
+  }
+  for (let level = 1; level < towerSpec.levels - 1; level += 1) {
+    const slabTop = level * storey
+    pieces.push(blockBetween([-half - 0.02, slabTop - 0.035, slabFront - 0.01], [half + 0.02, slabTop + 0.005, slabFront + 0.045]))
+    pieces.push(blockBetween([-half - 0.02, slabTop - slab, slabFront - 0.01], [half + 0.02, slabTop - slab + 0.03, slabFront + 0.025]))
+  }
+  return merge(pieces)
+}
+
+function streetFurnitureGeometry(): BufferGeometry {
+  const pieces: BufferGeometry[] = []
+  for (const x of bollardXs) {
+    pieces.push(place(new CylinderGeometry(0.09, 0.1, 0.86, 14), [x, 0.43, bollardZ]))
+    pieces.push(place(new SphereGeometry(0.09, 14, 6, 0, Math.PI * 2, 0, Math.PI / 2), [x, 0.86, bollardZ]))
+    pieces.push(place(new CylinderGeometry(0.104, 0.104, 0.05, 14), [x, 0.66, bollardZ]))
+  }
+  for (const x of bikeStandXs) {
+    const legHeight = 0.62
+    const halfSpan = 0.32
+    const bend = 0.14
+    for (const side of [-1, 1]) {
+      pieces.push(cylinderBetween([x, 0, bikeStandZ + side * halfSpan], [x, legHeight, bikeStandZ + side * halfSpan], 0.024, 10))
+      pieces.push(place(new TorusGeometry(bend, 0.024, 8, 10, Math.PI / 2), [x, legHeight, bikeStandZ + side * (halfSpan - bend)], [0, Math.PI / 2, side > 0 ? 0 : Math.PI / 2]))
+    }
+    pieces.push(cylinderBetween([x, legHeight + bend, bikeStandZ - halfSpan + bend], [x, legHeight + bend, bikeStandZ + halfSpan - bend], 0.024, 10))
+  }
+  const [binX, binZ] = litterBin
+  pieces.push(place(new CylinderGeometry(0.24, 0.21, 0.82, 20, 1, true), [binX, 0.43, binZ]))
+  pieces.push(place(new CylinderGeometry(0.26, 0.26, 0.06, 20), [binX, 0.87, binZ]))
+  pieces.push(place(new CylinderGeometry(0.05, 0.05, 0.9, 10), [binX, 0.45, binZ - 0.3]))
+  return merge(pieces)
+}
+
 function steelDetailGeometry(): BufferGeometry {
   const doorFrame = merge([
     blockBetween([-doorHalfWidth - 0.14, 0, half + 0.1], [-doorHalfWidth, doorHeight + 0.3, half + 0.32]),
@@ -344,7 +436,7 @@ function steelDetailGeometry(): BufferGeometry {
     block(entrance.canopySize, entrance.canopyCenter),
     ...[-1, 1].map((side) => strut(mirrorX(entrance.braceLow, side), mirrorX(entrance.braceHigh, side), 0.04)),
   ])
-  const pieces: BufferGeometry[] = [place(doorFrame, [doorX, 0, 0]), doorLeafGeometry(-1).frame, doorLeafGeometry(1).frame]
+  const pieces: BufferGeometry[] = [place(doorFrame, [doorX, 0, 0]), doorLeafGeometry(-1).frame, doorLeafGeometry(1).frame, curtainWallGeometry(), coreStairGeometry()]
   for (const side of [-1, 1]) {
     pieces.push(blockBetween([side < 0 ? -outer - 0.02 : outer, crownBase + 0.2, -outer], [side < 0 ? -outer : outer + 0.02, crownBase + 0.3, slabFront]))
   }
@@ -442,44 +534,197 @@ function lampGeometry(): BufferGeometry {
   ])
 }
 
-function neighbourGeometry(): BufferGeometry {
+interface NeighbourBlock {
+  minX: number
+  maxX: number
+  height: number
+  storeys: number
+}
+
+interface WindowOpening {
+  center: Vec3
+  width: number
+  height: number
+  shopfront: boolean
+}
+
+const neighbourBlocks: readonly NeighbourBlock[] = [
+  { minX: -30, maxX: -9.2, height: 16, storeys: 4 },
+  { minX: 10.5, maxX: 28, height: 7.5, storeys: 1 },
+]
+const neighbourFace = 6.6
+const neighbourSkin = 0.3
+const glassSetback = 0.22
+const windowPitch = 2.4
+const storeyPitch = 3.2
+const upperWindow = { width: 1.3, height: 1.7, sill: 3.75 } as const
+const shopfront = { width: 2, height: 2.4, sill: 0.5 } as const
+const frameWidth = 0.06
+
+function neighbourColumns({ minX, maxX }: NeighbourBlock): number[] {
+  const count = Math.floor((maxX - minX - 1.2) / windowPitch)
+  const start = (minX + maxX) / 2 - ((count - 1) * windowPitch) / 2
+  return Array.from({ length: count }, (_, column) => start + column * windowPitch)
+}
+
+function neighbourOpenings(): WindowOpening[] {
+  const openings: WindowOpening[] = []
+  const glassZ = neighbourFace - glassSetback
+  for (const building of neighbourBlocks) {
+    for (const x of neighbourColumns(building)) {
+      openings.push({ center: [x, shopfront.sill + shopfront.height / 2, glassZ], width: shopfront.width, height: shopfront.height, shopfront: true })
+      for (let storey = 0; storey < building.storeys; storey += 1) {
+        const bottom = upperWindow.sill + storey * storeyPitch
+        openings.push({ center: [x, bottom + upperWindow.height / 2, glassZ], width: upperWindow.width, height: upperWindow.height, shopfront: false })
+      }
+    }
+  }
+  return openings
+}
+
+function neighbourGeometry(openings: readonly WindowOpening[]): BufferGeometry {
   const pieces: BufferGeometry[] = []
-  const buildings: readonly { minX: number; maxX: number; height: number }[] = [
-    { minX: -30, maxX: -9.2, height: 16 },
-    { minX: 10.5, maxX: 28, height: 7.5 },
-  ]
-  for (const { minX, maxX, height } of buildings) {
-    pieces.push(blockBetween([minX, -0.2, -12], [maxX, height, 6.6]))
-    pieces.push(blockBetween([minX, height, 6.35], [maxX, height + 0.8, 6.6]))
+  const skinBack = neighbourFace - neighbourSkin
+  for (const building of neighbourBlocks) {
+    const { minX, maxX, height } = building
+    pieces.push(blockBetween([minX, -0.2, -12], [maxX, height, skinBack]))
+    pieces.push(blockBetween([minX - 0.06, height - 0.35, skinBack], [maxX + 0.06, height - 0.1, neighbourFace + 0.14]))
+    pieces.push(blockBetween([minX, height - 0.1, neighbourFace - 0.25], [maxX, height + 0.8, neighbourFace]))
+    pieces.push(blockBetween([minX, -0.2, skinBack], [maxX, 0.45, neighbourFace + 0.06]))
     pieces.push(blockBetween([minX + 3, height, -6], [minX + 6.5, height + 1.6, -2]))
     pieces.push(blockBetween([maxX - 6, height, -9], [maxX - 2, height + 2.4, -4]))
+    const own = openings.filter(({ center }) => center[0] > minX && center[0] < maxX)
+    const columns = neighbourColumns(building)
+    let cursor = minX
+    for (const x of columns) {
+      const halfWidth = shopfront.width / 2
+      pieces.push(blockBetween([cursor, 0.45, skinBack], [x - halfWidth, height - 0.35, neighbourFace]))
+      const stack = own.filter(({ center }) => center[0] === x).sort((a, b) => a.center[1] - b.center[1])
+      let floor = 0.45
+      for (const opening of stack) {
+        const bottom = opening.center[1] - opening.height / 2
+        const top = opening.center[1] + opening.height / 2
+        const half = opening.width / 2
+        if (bottom > floor) pieces.push(blockBetween([x - halfWidth, floor, skinBack], [x + halfWidth, bottom, neighbourFace]))
+        if (half < halfWidth) {
+          pieces.push(blockBetween([x - halfWidth, bottom, skinBack], [x - half, top, neighbourFace]))
+          pieces.push(blockBetween([x + half, bottom, skinBack], [x + halfWidth, top, neighbourFace]))
+        }
+        if (!opening.shopfront) pieces.push(block([opening.width + 0.14, 0.07, 0.16], [x, bottom - 0.035, neighbourFace + 0.03]))
+        floor = top
+      }
+      pieces.push(blockBetween([x - halfWidth, floor, skinBack], [x + halfWidth, height - 0.35, neighbourFace]))
+      cursor = x + halfWidth
+    }
+    pieces.push(blockBetween([cursor, 0.45, skinBack], [maxX, height - 0.35, neighbourFace]))
   }
   return projectWorldUVs(merge(pieces), concreteTile * 1.5)
 }
 
-function neighbourWindows(): { matrices: Matrix4[]; colors: Color[] } {
+function windowFrameGeometry(openings: readonly WindowOpening[]): BufferGeometry {
+  const pieces: BufferGeometry[] = []
+  for (const { center, width, height, shopfront: isShop } of openings) {
+    const [x, y, z] = center
+    const depth = 0.08
+    const frameZ = z + 0.01
+    pieces.push(block([width, frameWidth, depth], [x, y + height / 2 - frameWidth / 2, frameZ]))
+    pieces.push(block([width, frameWidth, depth], [x, y - height / 2 + frameWidth / 2, frameZ]))
+    pieces.push(block([frameWidth, height, depth], [x - width / 2 + frameWidth / 2, y, frameZ]))
+    pieces.push(block([frameWidth, height, depth], [x + width / 2 - frameWidth / 2, y, frameZ]))
+    pieces.push(block([0.045, height, depth * 0.8], [x, y, frameZ]))
+    if (isShop) pieces.push(block([width, 0.05, depth * 0.8], [x, y + height / 2 - 0.55, frameZ]))
+    else pieces.push(block([width - 0.1, 0.045, depth * 0.8], [x, y + height * 0.22, frameZ]))
+  }
+  return merge(pieces)
+}
+
+const windowVertexShader = `
+attribute vec3 aStyle;
+varying vec2 vUv;
+varying vec3 vTint;
+varying vec3 vStyle;
+varying vec3 vWorld;
+#include <fog_pars_vertex>
+void main() {
+  vUv = uv;
+  vStyle = aStyle;
+  vTint = instanceColor;
+  vec4 world = modelMatrix * instanceMatrix * vec4( position, 1.0 );
+  vWorld = world.xyz;
+  vec4 mvPosition = viewMatrix * world;
+  gl_Position = projectionMatrix * mvPosition;
+  #include <fog_vertex>
+}
+`
+
+const windowFragmentShader = `
+uniform vec3 uReflection;
+uniform float uLevel;
+varying vec2 vUv;
+varying vec3 vTint;
+varying vec3 vStyle;
+varying vec3 vWorld;
+#include <fog_pars_fragment>
+void main() {
+  float lit = max( max( vTint.r, vTint.g ), vTint.b );
+  float ceilingWash = 0.45 + 0.55 * smoothstep( 0.05, 0.95, vUv.y );
+  float lampSpot = exp( -pow( ( vUv.x - vStyle.z ) * 3.2, 2.0 ) - pow( ( vUv.y - 0.86 ) * 4.0, 2.0 ) ) * 0.6;
+  vec3 interior = vTint * ( ceilingWash + lampSpot );
+  float blindEdge = 1.0 - vStyle.x;
+  float blind = smoothstep( blindEdge - 0.004, blindEdge + 0.004, vUv.y );
+  float slats = 0.7 + 0.3 * smoothstep( 0.35, 0.65, abs( fract( vUv.y * 26.0 ) - 0.5 ) * 2.0 );
+  interior = mix( interior, vTint * 0.42 * slats, blind );
+  float drape = vStyle.y * ( 1.0 - smoothstep( 0.08, 0.24, vUv.x ) + smoothstep( 0.76, 0.92, vUv.x ) );
+  interior *= 1.0 - 0.55 * drape;
+  vec3 view = normalize( vWorld - cameraPosition );
+  float grazing = pow( 1.0 - abs( view.z ), 2.5 );
+  float skyward = smoothstep( 0.0, 1.0, vUv.y );
+  vec3 reflection = uReflection * ( 0.35 + 0.65 * grazing ) * ( 0.7 + 0.3 * skyward ) * ( 1.0 - 0.75 * min( lit * 3.0, 1.0 ) );
+  gl_FragColor = vec4( interior * uLevel + reflection, 1.0 );
+  #include <tonemapping_fragment>
+  #include <colorspace_fragment>
+  #include <fog_fragment>
+}
+`
+
+interface NeighbourWindows {
+  mesh: InstancedMesh
+  reflection: Color
+  level: { value: number }
+}
+
+function neighbourWindows(openings: readonly WindowOpening[]): NeighbourWindows {
   const random = createRandom(77)
+  const warmLamps = ['#FFB25E', '#FFC27A', '#FFD49A', '#F2A65A'].map((hex) => new Color(hex))
+  const screenGlow = new Color('#8FA6E8')
+  const dark = new Color('#020304')
   const matrices: Matrix4[] = []
   const colors: Color[] = []
-  const lit = new Color(palette.warm)
-  const cool = new Color('#9db3ff')
-  const dark = new Color('#0b111a')
-  const facades = [
-    { minX: -30, maxX: -9.2, height: 16 },
-    { minX: 10.5, maxX: 28, height: 7.5 },
-  ]
-  for (const { minX, maxX, height } of facades) {
-    for (let x = minX + 1.4; x < maxX - 1; x += 2.4) {
-      matrices.push(composeMatrix([x, 1.7, 6.62], [0, 0, 0], [2, 2.4, 1]))
-      colors.push(random() < 0.25 ? lit.clone().multiplyScalar(0.08 + random() * 0.1) : dark)
-      for (let y = 4.6; y < height - 1.2; y += 3.2) {
-        matrices.push(composeMatrix([x, y, 6.62], [0, 0, 0], [1.3, 1.7, 1]))
-        const roll = random()
-        colors.push(roll < 0.12 ? lit.clone().multiplyScalar(0.07 + random() * 0.12) : roll < 0.18 ? cool.clone().multiplyScalar(0.07) : dark)
-      }
-    }
+  const styles: number[] = []
+  for (const { center, width, height, shopfront: isShop } of openings) {
+    matrices.push(composeMatrix(center, [0, 0, 0], [width - frameWidth, height - frameWidth, 1]))
+    const roll = random()
+    const litChance = isShop ? 0.2 : 0.18
+    const tint = roll < litChance
+      ? warmLamps[Math.floor(random() * warmLamps.length)].clone().multiplyScalar(0.06 + random() * 0.1)
+      : roll < litChance + 0.06
+        ? screenGlow.clone().multiplyScalar(0.035 + random() * 0.035)
+        : dark
+    colors.push(tint)
+    const blinds = random() < 0.45 ? 0.15 + random() * 0.55 : 0
+    styles.push(isShop ? Math.min(blinds, 0.25) : blinds, random() < 0.35 ? 1 : 0, 0.25 + random() * 0.5)
   }
-  return { matrices, colors }
+  const geometry = new PlaneGeometry(1, 1)
+  geometry.setAttribute('aStyle', new InstancedBufferAttribute(new Float32Array(styles), 3))
+  const reflection = new Color()
+  const level = { value: 1 }
+  const material = new ShaderMaterial({
+    uniforms: { ...UniformsUtils.clone(UniformsLib.fog), uReflection: { value: reflection }, uLevel: level },
+    vertexShader: windowVertexShader,
+    fragmentShader: windowFragmentShader,
+    fog: true,
+  })
+  return { mesh: instances(geometry, material, matrices, colors), reflection, level }
 }
 
 function wetReflectionGeometry(): BufferGeometry {
@@ -553,8 +798,6 @@ export const createTower: FloorFactory = (context) => {
 
   const doorEmitter = createEmitter(palette.warm, 1.6)
   const door = new Mesh(doorGeometry(), doorEmitter.material)
-  const doorLight = new PointLight(palette.warm, 16, 16, 2)
-  doorLight.position.set(doorX, 2.4, half + 1.4)
 
   const road = new Mesh(
     scaleUVs(
@@ -584,18 +827,19 @@ export const createTower: FloorFactory = (context) => {
     steelMaterial({ color: '#23272e' }),
     lampXs.map((x) => composeMatrix([x, 0, lampZ])),
   )
+  const furniture = new Mesh(streetFurnitureGeometry(), steelMaterial({ color: '#2A2E35', roughness: 0.4 }))
+  furniture.castShadow = true
   const lampEmitter = createEmitter(palette.warm, 2.4)
   const lampHeads = instances(
     new BoxGeometry(0.42, 0.02, 0.22),
     lampEmitter.material,
     lampXs.map((x) => composeMatrix([x, 4.955, lampZ + 1.05])),
   )
-  const lampLight = new PointLight(palette.warm, 28, 20, 2)
-  lampLight.position.set(litLampX, 4.7, lampZ + 1.05)
 
-  const neighbours = new Mesh(neighbourGeometry(), wornConcreteMaterial(textures, groundWear, { color: '#A0A5AD' }))
-  const windowLayout = neighbourWindows()
-  const neighbourWindowMesh = instances(new PlaneGeometry(1, 1), new MeshBasicMaterial(), windowLayout.matrices, windowLayout.colors)
+  const openings = neighbourOpenings()
+  const neighbours = new Mesh(neighbourGeometry(openings), wornConcreteMaterial(textures, groundWear, { color: '#9C9A96' }))
+  const neighbourFrames = new Mesh(windowFrameGeometry(openings), steelMaterial({ color: '#2C2F34', metalness: 0.4, roughness: 0.5 }))
+  const windows = neighbourWindows(openings)
 
   for (const mesh of [shell, slabs, slabTops, facade, neighbours]) {
     mesh.castShadow = true
@@ -627,23 +871,24 @@ export const createTower: FloorFactory = (context) => {
     glass,
     strips,
     door,
-    doorLight,
     road,
     wetReflections.mesh,
     markings,
     pools,
     lamps,
     lampHeads,
-    lampLight,
+    furniture,
     neighbours,
-    neighbourWindowMesh,
+    neighbourFrames,
+    windows.mesh,
     ...proxies.map((proxy) => proxy.object),
   )
 
   function update(frame: FrameState): void {
     const { world, dt, reducedMotion, progress } = frame
     const interior = smoothstep(chapterIndex.frontend - 1, chapterIndex.frontend, progress.smooth) * (1 - smoothstep(chapterIndex.aiProducts, chapterIndex.aiCoding, progress.smooth))
-    const edgeLevel = 1 - interiorEdgeDimming * interior
+    const underDeck = smoothstep(chapterIndex.aiCoding - 0.85, chapterIndex.aiCoding - 0.25, progress.smooth) * (1 - smoothstep(chapterIndex.aiCoding + 0.35, chapterIndex.aiCoding + 0.95, progress.smooth))
+    const edgeLevel = (1 - interiorEdgeDimming * interior) * (1 - underDeck)
     for (let floor = 0; floor < indexedFloorCount; floor += 1) {
       indexEmphasis[floor] = reducedMotion ? indexTarget[floor] : approach(indexEmphasis[floor], indexTarget[floor], 10, dt)
       const lit = smoothstep(0, 1, world.floorsLit - floor)
@@ -655,12 +900,13 @@ export const createTower: FloorFactory = (context) => {
 
     const daylight = 1 - world.dawn * 0.45
     doorEmitter.set(1.6 * daylight)
-    doorLight.intensity = 16 * daylight
     lampEmitter.set(2.4 * daylight)
-    lampLight.intensity = 28 * daylight
     poolMaterial.color.set(palette.warm).multiplyScalar(0.55 * daylight)
     wetReflections.material.uniforms.uIntensity.value = reflectionStrength * daylight
-    wetReflections.material.uniforms.uFogDensity.value = context.scene.fog instanceof FogExp2 ? context.scene.fog.density : 0
+    const fog = context.scene.fog instanceof FogExp2 ? context.scene.fog : null
+    wetReflections.material.uniforms.uFogDensity.value = fog ? fog.density : 0
+    if (fog) windows.reflection.copy(fog.color).multiplyScalar(0.7)
+    windows.level.value = 1 - world.dawn * 0.55
   }
 
   function dispose(): void {
