@@ -19,6 +19,10 @@ export const de: Content = {
       'Startseite der Website der Frauenarztpraxis Dr. Fakhari',
     ],
     freelancermap: 'freelancermap',
+    floorsLabel: 'Etagen',
+    railNames: ['Straße', 'Index', 'Frontend', 'Backend', 'Cloud', 'Daten', 'KI-Produkte', 'KI-Coding', 'Schulung', 'Über mich', 'Hallo'],
+    previewFloor: 'Vorschau',
+    copyEmail: 'E-Mail kopieren',
   },
   meta: {
     title: 'Vito Krawutschke · Full-Stack- und KI-Engineer, Köln',
@@ -56,7 +60,6 @@ export const de: Content = {
   stops: [
     {
       id: 'stop-frontend',
-      figure: 'frontend',
       number: '01',
       caption: 'Station 01 / fig. 02',
       title: 'Frontend',
@@ -74,7 +77,6 @@ export const de: Content = {
     },
     {
       id: 'stop-backend',
-      figure: 'backend',
       number: '02',
       caption: 'Station 02 / fig. 03',
       title: 'Backend',
@@ -93,7 +95,6 @@ export const de: Content = {
     },
     {
       id: 'stop-cloud',
-      figure: 'cloud',
       number: '03',
       caption: 'Station 03 / fig. 04',
       title: 'Cloud und Infrastruktur',
@@ -118,7 +119,6 @@ export const de: Content = {
     },
     {
       id: 'stop-data',
-      figure: 'data',
       number: '04',
       caption: 'Station 04 / fig. 05',
       title: 'Daten und Integration',
@@ -142,7 +142,6 @@ export const de: Content = {
     },
     {
       id: 'stop-ai-products',
-      figure: 'ai-products',
       number: '05',
       caption: 'Station 05 / fig. 06',
       title: 'KI in Produkten',
@@ -173,7 +172,6 @@ export const de: Content = {
     },
     {
       id: 'stop-ai-coding',
-      figure: 'ai-coding',
       number: '06',
       caption: 'Station 06 / fig. 07',
       title: 'KI für ',
@@ -203,7 +201,6 @@ export const de: Content = {
     },
     {
       id: 'stop-teaching',
-      figure: 'teaching',
       number: '07',
       caption: 'Station 07 / fig. 08',
       title: 'Die meisten Unternehmen nutzen KI noch nicht. ',

@@ -1,5 +1,3 @@
-import type { FigureId } from '../types'
-
 export interface ProofItem {
   title: string
   detail: string
@@ -17,7 +15,6 @@ export interface Link {
 
 export interface Stop {
   id: string
-  figure: FigureId
   number: string
   caption: string
   title: string
@@ -50,6 +47,10 @@ export interface UiStrings {
   contactLegalLabel: string
   thumbAlts: string[]
   freelancermap: string
+  floorsLabel: string
+  railNames: string[]
+  previewFloor: string
+  copyEmail: string
 }
 
 export interface Content {

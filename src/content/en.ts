@@ -18,6 +18,10 @@ export const en: Content = {
       'Homepage of the Frauenarztpraxis Dr. Fakhari website',
     ],
     freelancermap: 'freelancermap',
+    floorsLabel: 'Floors',
+    railNames: ['Street', 'Index', 'Frontend', 'Backend', 'Cloud', 'Data', 'AI products', 'AI coding', 'Teaching', 'About', 'Say hi'],
+    previewFloor: 'Preview',
+    copyEmail: 'Copy email',
   },
   meta: {
     title: 'Vito Krawutschke · Full-stack and AI engineer, Cologne',
@@ -55,7 +59,6 @@ export const en: Content = {
   stops: [
     {
       id: 'stop-frontend',
-      figure: 'frontend',
       number: '01',
       caption: 'Stop 01 / fig. 02',
       title: 'Frontend',
@@ -73,7 +76,6 @@ export const en: Content = {
     },
     {
       id: 'stop-backend',
-      figure: 'backend',
       number: '02',
       caption: 'Stop 02 / fig. 03',
       title: 'Backend',
@@ -92,7 +94,6 @@ export const en: Content = {
     },
     {
       id: 'stop-cloud',
-      figure: 'cloud',
       number: '03',
       caption: 'Stop 03 / fig. 04',
       title: 'Cloud and infra',
@@ -117,7 +118,6 @@ export const en: Content = {
     },
     {
       id: 'stop-data',
-      figure: 'data',
       number: '04',
       caption: 'Stop 04 / fig. 05',
       title: 'Data and integration',
@@ -138,7 +138,6 @@ export const en: Content = {
     },
     {
       id: 'stop-ai-products',
-      figure: 'ai-products',
       number: '05',
       caption: 'Stop 05 / fig. 06',
       title: 'AI in products',
@@ -161,7 +160,6 @@ export const en: Content = {
     },
     {
       id: 'stop-ai-coding',
-      figure: 'ai-coding',
       number: '06',
       caption: 'Stop 06 / fig. 07',
       title: 'AI for ',
@@ -191,7 +189,6 @@ export const en: Content = {
     },
     {
       id: 'stop-teaching',
-      figure: 'teaching',
       number: '07',
       caption: 'Stop 07 / fig. 08',
       title: "Most companies don't use AI yet. ",

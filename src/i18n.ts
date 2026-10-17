@@ -45,9 +45,9 @@ function safeSession(): Storage | null {
 }
 
 function visibleSectionId(): string | null {
-  const staged = document.documentElement.dataset.scene
+  const staged = document.documentElement.dataset.chapter
   if (staged && document.getElementById(staged)) return staged
-  const panels = Array.from(document.querySelectorAll<HTMLElement>('main .panel[id]'))
+  const panels = Array.from(document.querySelectorAll<HTMLElement>('main .chapter[id]'))
   const centreX = window.innerWidth / 2
   const centreY = window.innerHeight / 2
   let best: { id: string; distance: number } | null = null
