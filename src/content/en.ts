@@ -17,7 +17,6 @@ export const en: Content = {
     railNumbers: ['ST', '↕', 'G', '1', '2', '3', '4', '5', '6', 'R', 'A'],
     railNames: ['Street', 'Stack', 'Frontend', 'Backend', 'Cloud', 'Data', 'AI products', 'AI coding', 'People', 'About', 'Say hi'],
     previewFloor: 'Preview',
-    copyEmail: 'Copy email',
     replayLaunch: 'Replay launch',
     homelabHeading: 'The homelab',
   },
@@ -38,7 +37,7 @@ export const en: Content = {
   },
   hero: {
     pill: 'Available now',
-    pillDetail: 'Remote, international or hybrid in Cologne / NRW',
+    pillDetail: 'Cologne, available for remote work',
     eyebrow: 'Vito Krawutschke · Full-stack and AI engineer, Cologne',
     headline: 'I build full-stack, cloud-native apps with AI, and teach teams how.',
     proofPoints: [
@@ -255,10 +254,13 @@ export const en: Content = {
   sayHi: {
     pill: 'Available now',
     link: 'Say hi',
-    line: 'Remote, international or hybrid in Cologne / NRW. Rate on request.',
-    annotation: 'The beacon on the roof. Click it to copy the email.',
-    email: 'viktor.krawutschke@gmail.com',
+    line: 'Based in Cologne, available for remote work. Rate on request.',
+    annotation: 'The beacon on the roof works too. Click it to copy the email.',
+    emailLabel: 'Email me',
+    hintPointer: 'Click to copy · hold to write',
+    hintTouch: 'Tap to copy · hold to write',
     copied: 'Copied. Talk soon.',
+    opening: 'Opening your mail app.',
     links: [
       { label: 'LinkedIn', href: 'https://www.linkedin.com/in/viktorkrawutschke' },
       { label: 'Impressum', href: '/impressum/' },

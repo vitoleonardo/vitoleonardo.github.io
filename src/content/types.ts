@@ -46,7 +46,6 @@ export interface UiStrings {
   railNumbers: string[]
   railNames: string[]
   previewFloor: string
-  copyEmail: string
   replayLaunch: string
   homelabHeading: string
 }
@@ -88,8 +87,11 @@ export interface Content {
     link: string
     line: string
     annotation: string
-    email: string
+    emailLabel: string
+    hintPointer: string
+    hintTouch: string
     copied: string
+    opening: string
     links: Link[]
     credit: string
   }

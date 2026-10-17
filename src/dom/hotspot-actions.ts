@@ -1,5 +1,5 @@
 import { indexFloorTargetChapter } from '../world/interaction-state'
-import { copyEmailFrom } from './copy-email'
+import { requestEmailActivation } from './email-button'
 import { createServiceReadout } from './service-readout'
 
 export interface HotspotActions {
@@ -50,10 +50,7 @@ export function createHotspotActions(options: HotspotActionOptions): HotspotActi
         options.scrollToChapter(targetChapter)
         return
       }
-      if (id === 'say-hi-beacon' && button) {
-        const scope = button.closest('.chapter-copy')
-        if (scope) void copyEmailFrom(scope)
-      }
+      if (id === 'say-hi-beacon' && button) requestEmailActivation(button)
     },
     dispose() {
       serviceReadout.dispose()

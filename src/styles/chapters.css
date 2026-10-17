@@ -231,6 +231,113 @@ h3 {
   color: var(--warm);
 }
 
+.email-button {
+  position: relative;
+  display: inline-grid;
+  gap: 2px;
+  justify-items: start;
+  max-width: 100%;
+  min-height: 56px;
+  padding: 10px var(--space-6) 9px;
+  border: 1px solid var(--readable);
+  border-radius: 2px;
+  background: var(--readable);
+  color: var(--night);
+  text-align: left;
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  transition: background 0.2s, border-color 0.2s;
+}
+
+html:not(.js) .email-button {
+  display: none;
+}
+
+.email-button:hover,
+.email-button[data-state='hover'],
+.email-button[data-state='active'] {
+  border-color: var(--dawn);
+  background: var(--dawn);
+}
+
+.email-button.is-resizing {
+  transition: background 0.2s, border-color 0.2s, width 0.5s var(--ease-out);
+}
+
+.email-label {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  font-family: var(--font-mono);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  line-height: 1.5;
+  white-space: nowrap;
+}
+
+.email-hint {
+  max-width: 100%;
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  letter-spacing: 0.06em;
+  line-height: 1.4;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--night) 68%, transparent);
+}
+
+.email-line {
+  position: absolute;
+  right: 0;
+  bottom: -14px;
+  left: 0;
+  height: 9px;
+  color: var(--blueprint);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s;
+}
+
+.email-button.is-drawing .email-line {
+  opacity: 1;
+}
+
+.email-line::before,
+.email-fill {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(currentColor, currentColor) left / 1px 100% no-repeat,
+    linear-gradient(currentColor, currentColor) right / 1px 100% no-repeat,
+    linear-gradient(currentColor, currentColor) center / 100% 1px no-repeat;
+}
+
+.email-fill {
+  color: var(--warm);
+  clip-path: inset(0 calc((1 - var(--press-progress, 0)) * 100%) 0 0);
+}
+
+.email-fill::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: calc(var(--press-progress, 0) * 100% - 1px);
+  width: 1px;
+  background: currentColor;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .email-button.is-revealed .email-label {
+    user-select: text;
+    -webkit-user-select: text;
+  }
+}
+
 .tool-list,
 .chip-list,
 .ring-list {
@@ -568,10 +675,59 @@ h3 {
 }
 
 .copy-status {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: fit-content;
   min-height: 1.5em;
+  padding-bottom: 4px;
   font-family: var(--font-mono);
   font-size: 0.8125rem;
   color: var(--accent);
+}
+
+.copy-status.is-confirmed:not(:empty)::before {
+  content: '';
+  flex: none;
+  width: 11px;
+  height: 6px;
+  border-bottom: 1.5px solid currentColor;
+  border-left: 1.5px solid currentColor;
+  transform: translateY(-2px) rotate(-45deg);
+  animation: status-tick 0.4s var(--ease-out) backwards;
+}
+
+.copy-status.is-confirmed:not(:empty)::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 1px;
+  background: var(--blueprint);
+  transform-origin: left;
+  animation: status-rule 0.5s var(--ease-out) backwards;
+}
+
+@keyframes status-tick {
+  from {
+    clip-path: inset(0 100% 0 0);
+  }
+
+  to {
+    clip-path: inset(0);
+  }
+}
+
+@keyframes status-rule {
+  from {
+    transform: scaleX(0);
+  }
+
+  to {
+    transform: scaleX(1);
+  }
 }
 
 .site-footer {

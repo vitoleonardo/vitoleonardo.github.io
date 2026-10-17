@@ -17,7 +17,6 @@ export const de: Content = {
     railNumbers: ['ST', '↕', 'EG', '1', '2', '3', '4', '5', '6', 'D', 'A'],
     railNames: ['Straße', 'Stack', 'Frontend', 'Backend', 'Cloud', 'Daten', 'KI-Produkte', 'KI-Coding', 'Team', 'Über mich', 'Hallo'],
     previewFloor: 'Vorschau',
-    copyEmail: 'E-Mail kopieren',
     replayLaunch: 'Start wiederholen',
     homelabHeading: 'Das Homelab',
   },
@@ -38,7 +37,7 @@ export const de: Content = {
   },
   hero: {
     pill: 'Sofort verfügbar',
-    pillDetail: 'Remote, international oder hybrid in Köln / NRW',
+    pillDetail: 'Köln, verfügbar für Remote-Arbeit',
     eyebrow: 'Vito Krawutschke · Full-Stack- und KI-Engineer, Köln',
     headline: 'Ich baue Cloud-native Full-Stack-Apps mit KI und bringe es Teams bei.',
     proofPoints: [
@@ -266,10 +265,13 @@ export const de: Content = {
   sayHi: {
     pill: 'Sofort verfügbar',
     link: 'Hallo',
-    line: 'Remote, international oder hybrid in Köln / NRW. Honorar auf Anfrage.',
-    annotation: 'Das Leuchtfeuer auf dem Dach. Klicken Sie darauf, um die E-Mail-Adresse zu kopieren.',
-    email: 'viktor.krawutschke@gmail.com',
+    line: 'Mit Sitz in Köln, verfügbar für Remote-Arbeit. Honorar auf Anfrage.',
+    annotation: 'Das Leuchtfeuer auf dem Dach funktioniert auch. Klicken Sie darauf, um die E-Mail-Adresse zu kopieren.',
+    emailLabel: 'Schreib mir',
+    hintPointer: 'Klicken zum Kopieren · halten zum Schreiben',
+    hintTouch: 'Tippen zum Kopieren · halten zum Schreiben',
     copied: 'Kopiert. Bis bald.',
+    opening: 'Mail-App wird geöffnet.',
     links: [
       { label: 'LinkedIn', href: 'https://www.linkedin.com/in/viktorkrawutschke' },
       { label: 'Impressum', href: '/impressum/' },
