@@ -15,7 +15,7 @@ export const en: Content = {
     ],
     floorsLabel: 'Floors',
     railNumbers: ['ST', '↕', 'G', '1', '2', '3', '4', '5', '6', 'R', 'A'],
-    railNames: ['Street', 'Stack', 'Frontend', 'Backend', 'Cloud', 'Data', 'AI products', 'AI coding', 'Teaching', 'About', 'Say hi'],
+    railNames: ['Street', 'Stack', 'Frontend', 'Backend', 'Cloud', 'Data', 'AI products', 'AI coding', 'People', 'About', 'Say hi'],
     previewFloor: 'Preview',
     copyEmail: 'Copy email',
     replayLaunch: 'Replay launch',
@@ -193,19 +193,29 @@ export const en: Content = {
     {
       id: 'stop-teaching',
       number: '6',
-      caption: 'Floor 6 / Teaching',
-      title: "Most companies don't use AI yet. ",
-      titleEmphasis: 'I teach them how.',
-      indexTitle: 'Teaching',
-      indexTools: 'Prompting, agentic workflows, token economics',
-      tools: ['Prompt engineering', 'Agentic workflows', 'Token economics'],
+      caption: 'Floor 6 / Teaching and teams',
+      title: 'Good teams ship faster. ',
+      titleEmphasis: 'I teach them AI and keep the vibe right.',
+      indexTitle: 'Teaching and teams',
+      indexTools: 'Teaching AI, mentoring, communication',
+      tools: ['Prompting, agentic workflows, token economics', 'Mentoring and onboarding', 'Translating between tech, clients and business', 'Honest feedback that people like to get'],
       proof: [
         {
           title: 'Digitale Leute School, 2026',
-          detail:
-            'Mentor at the AI Software Engineering Bootcamp. I taught the new AI tools, wrote the exercises and graded them.',
+          detail: 'Mentor at the AI Software Engineering Bootcamp. I wrote and graded the exercises, noticed who was stuck and helped one on one.',
         },
-        { title: 'Every student shipped', detail: 'After three months, all 20 students had a running web app.' },
+        {
+          title: 'Every student shipped',
+          detail: 'All 20, from career changers to developers, had a running web app after three months.',
+        },
+        {
+          title: 'Mit Dir Festival kitchens',
+          detail: 'Volunteers arrive as strangers. A few hours later they are a team of 8 to 14 cooking for 500, and the mood holds through long shifts.',
+        },
+        {
+          title: 'Between devs, clients and business',
+          detail: 'I turn wishes into tech, and tech back into decisions everyone understands.',
+        },
       ],
       ringLabels: ['01 Product skills', '02 Foundations', '03 Engineering with AI', '04 Agentic AI'],
       footer: '20 lights, one per running app',
@@ -215,8 +225,9 @@ export const en: Content = {
     caption: 'Roof / About',
     heading: 'When the work is done, ',
     headingEmphasis: 'the music starts.',
-    text: "I'm Vito. Computer science at HHU Düsseldorf with a focus on machine learning, then full-stack work for startups and DAX-listed companies. Years in bars and restaurants taught me to stay calm under pressure. Today I lead volunteer kitchens at music festivals, cooking for 500 people with teams of 8 to 14. Right now I'm training to build 3D animated websites like this one. It's fun, and it shows my creative side.",
+    text: "I'm Vito. Computer science at HHU Düsseldorf with a focus on machine learning, then full-stack work for startups and DAX-listed companies. Years in bars and restaurants taught me to stay calm under pressure and to read a room. Right now I'm training to build 3D animated websites like this one. It's fun, and it shows my creative side.",
     facts: [
+      { label: 'Code', value: 'TypeScript, JavaScript, Python, Java, SQL' },
       { label: 'Languages', value: 'German, English, Spanish, Portuguese' },
       { label: 'Culture', value: 'Art, house music, festivals' },
       { label: 'Outside', value: 'Kitesurfing, skiing, hiking, flying drones' },

@@ -15,7 +15,7 @@ export const de: Content = {
     ],
     floorsLabel: 'Etagen',
     railNumbers: ['ST', '↕', 'EG', '1', '2', '3', '4', '5', '6', 'D', 'A'],
-    railNames: ['Straße', 'Stack', 'Frontend', 'Backend', 'Cloud', 'Daten', 'KI-Produkte', 'KI-Coding', 'Schulung', 'Über mich', 'Hallo'],
+    railNames: ['Straße', 'Stack', 'Frontend', 'Backend', 'Cloud', 'Daten', 'KI-Produkte', 'KI-Coding', 'Team', 'Über mich', 'Hallo'],
     previewFloor: 'Vorschau',
     copyEmail: 'E-Mail kopieren',
     replayLaunch: 'Start wiederholen',
@@ -204,21 +204,28 @@ export const de: Content = {
     {
       id: 'stop-teaching',
       number: '6',
-      caption: 'Etage 6 / Schulung',
-      title: 'Die meisten Unternehmen nutzen KI noch nicht. ',
-      titleEmphasis: 'Ich zeige, wie es geht.',
-      indexTitle: 'Schulung',
-      indexTools: 'Prompting, agentische Workflows, Token-Ökonomie',
-      tools: ['Prompt Engineering', 'Agentische Workflows', 'Token-Ökonomie'],
+      caption: 'Etage 6 / Schulung und Teams',
+      title: 'Gute Teams liefern schneller. ',
+      titleEmphasis: 'Ich bringe ihnen KI bei und sorge für die richtige Stimmung.',
+      indexTitle: 'Schulung und Teams',
+      indexTools: 'KI-Schulung, Mentoring, Kommunikation',
+      tools: ['Prompting, agentische Workflows, Token-Ökonomie', 'Mentoring und Onboarding', 'Übersetzen zwischen Technik, Kunden und Business', 'Ehrliches Feedback, das man gern bekommt'],
       proof: [
         {
           title: 'Digitale Leute School, 2026',
-          detail:
-            'Mentor im Bootcamp AI Software Engineering. Ich habe die neuen KI-Tools vermittelt, die Übungen geschrieben und bewertet.',
+          detail: 'Mentor im Bootcamp AI Software Engineering. Ich habe die Übungen geschrieben und bewertet, gemerkt, wer feststeckt, und eins zu eins geholfen.',
         },
         {
           title: 'Alle haben geliefert',
-          detail: 'Nach drei Monaten hatten alle 20 Teilnehmenden eine laufende Web-App.',
+          detail: 'Alle 20, von Quereinsteigenden bis zu Entwickelnden, hatten nach drei Monaten eine laufende Web-App.',
+        },
+        {
+          title: 'Küchen beim Mit Dir Festival',
+          detail: 'Freiwillige kommen als Fremde. Ein paar Stunden später sind sie ein Team von 8 bis 14, kochen für 500, und die Stimmung hält über lange Schichten.',
+        },
+        {
+          title: 'Zwischen Entwicklung, Kunden und Business',
+          detail: 'Ich übersetze Wünsche in Technik und Technik zurück in Entscheidungen, die alle verstehen.',
         },
       ],
       ringLabels: ['01 Produktkompetenz', '02 Grundlagen', '03 Engineering mit KI', '04 Agentische KI'],
@@ -229,8 +236,9 @@ export const de: Content = {
     caption: 'Dach / Über mich',
     heading: 'Wenn die Arbeit getan ist, ',
     headingEmphasis: 'beginnt die Musik.',
-    text: 'Ich bin Vito. Informatik an der HHU Düsseldorf mit Schwerpunkt maschinelles Lernen, danach Full-Stack-Arbeit für Startups und DAX-Konzerne. Jahre in Bars und Restaurants haben mich gelehrt, unter Druck ruhig zu bleiben. Heute leite ich ehrenamtliche Küchen auf Musikfestivals und koche für 500 Menschen mit Teams von 8 bis 14 Personen. Gerade trainiere ich, animierte 3D-Websites wie diese zu bauen. Das macht Spaß und zeigt meine kreative Seite.',
+    text: 'Ich bin Vito. Informatik an der HHU Düsseldorf mit Schwerpunkt maschinelles Lernen, danach Full-Stack-Arbeit für Startups und DAX-Konzerne. Jahre in Bars und Restaurants haben mich gelehrt, unter Druck ruhig zu bleiben und einen Raum zu lesen. Gerade trainiere ich, animierte 3D-Websites wie diese zu bauen. Das macht Spaß und zeigt meine kreative Seite.',
     facts: [
+      { label: 'Code', value: 'TypeScript, JavaScript, Python, Java, SQL' },
       { label: 'Sprachen', value: 'Deutsch, Englisch, Spanisch, Portugiesisch' },
       { label: 'Kultur', value: 'Kunst, House-Musik, Festivals' },
       { label: 'Draußen', value: 'Kitesurfen, Skifahren, Wandern, Drohnen fliegen' },
