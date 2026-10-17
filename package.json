@@ -19,6 +19,7 @@
     "check": "npm run typecheck && npm run lint && npm run test",
     "de": "node scripts/gen-de.mjs",
     "og": "node scripts/og.mjs",
+    "posters": "node scripts/posters.mjs",
     "capture": "node scripts/capture.mjs"
   },
   "dependencies": {
