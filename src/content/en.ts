@@ -217,8 +217,8 @@ export const en: Content = {
     text: "I'm Vito. Computer science at HHU Düsseldorf with a focus on machine learning, then full-stack work for startups and DAX-listed companies. Years in bars and restaurants taught me to stay calm under pressure. Today I lead volunteer kitchens at music festivals, cooking for 500 people with teams of 8 to 14.",
     facts: [
       { label: 'Languages', value: 'German, English, Spanish, Portuguese' },
-      { label: 'Night', value: 'House music, festivals' },
-      { label: 'Outside', value: 'Surfing, skiing, hiking, flying drones' },
+      { label: 'Culture', value: 'Art, house music, festivals' },
+      { label: 'Outside', value: 'Kitesurfing, skiing, hiking, flying drones' },
       { label: 'At home', value: 'A self-hosted homelab' },
     ],
     homelab: {

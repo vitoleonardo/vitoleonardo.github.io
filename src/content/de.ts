@@ -231,8 +231,8 @@ export const de: Content = {
     text: 'Ich bin Vito. Informatik an der HHU Düsseldorf mit Schwerpunkt maschinelles Lernen, danach Full-Stack-Arbeit für Startups und DAX-Konzerne. Jahre in Bars und Restaurants haben mich gelehrt, unter Druck ruhig zu bleiben. Heute leite ich ehrenamtliche Küchen auf Musikfestivals und koche für 500 Menschen mit Teams von 8 bis 14 Personen.',
     facts: [
       { label: 'Sprachen', value: 'Deutsch, Englisch, Spanisch, Portugiesisch' },
-      { label: 'Nacht', value: 'House-Musik, Festivals' },
-      { label: 'Draußen', value: 'Surfen, Skifahren, Wandern, Drohnen fliegen' },
+      { label: 'Kultur', value: 'Kunst, House-Musik, Festivals' },
+      { label: 'Draußen', value: 'Kitesurfen, Skifahren, Wandern, Drohnen fliegen' },
       { label: 'Zuhause', value: 'Ein selbst gehostetes Homelab' },
     ],
     homelab: {
