@@ -9,7 +9,7 @@ export const scrollWeights = {
   'stop-data': 1.2,
   'stop-ai-products': 1.2,
   'stop-ai-coding': 1.6,
-  'stop-teaching': 1.3,
+  'stop-teaching': 1.8,
   about: 1.4,
   'say-hi': 1.2,
 } as const satisfies Record<ChapterId, number>
@@ -50,7 +50,7 @@ export const chapters: readonly ChapterSpec[] = [
       position: [-6, 1.7, 34],
       target: [0, 15, 0],
       fov: 58,
-      mobile: { position: [-4, 3, 58], target: [0, 14.6, 0], fov: 69 },
+      mobile: { position: [-4, 1.7, 72], target: [0, 2.2, 0], fov: 69 },
     },
     world: nightStreet,
     focus: ['street', 'frontend'],
@@ -65,9 +65,9 @@ export const chapters: readonly ChapterSpec[] = [
       position: [52, 22, 62],
       target: [2, 14, 0],
       fov: 28,
-      mobile: { position: [60, 26, 84], target: [3, 13.2, 0], fov: 42 },
+      mobile: { position: [82, 24.4, 117], target: [3, -0.6, 0], fov: 55 },
     },
-    world: { ...nightStreet, key: 0.55, ambient: 0.35, practicals: 0.5, fog: 0.35, rain: 0.7 },
+    world: { ...nightStreet, key: 0.55, ambient: 0.35, practicals: 0.5, fog: 0.35, rain: 0.7, floorsLit: ALL_FLOORS_LIT },
     focus: ['street', 'frontend', 'backend', 'cloud', 'data', 'ai-core', 'rocket', 'teaching'],
     interactions: [
       'index-floor-0',
@@ -190,7 +190,7 @@ export const chapters: readonly ChapterSpec[] = [
     landmark: 'A spiral of twenty lights in the glass crown, four rings for four modules',
     change: 'The camera follows the rocket up and looks down into the spiral',
     camera: {
-      position: [2, 27.3, 8.4],
+      position: [0.2, 27.3, 8.4],
       target: [-0.5, 24.6, -0.5],
       fov: 50,
       approach: [7.5, 23.2, 11],

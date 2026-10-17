@@ -7,6 +7,7 @@
   --signal: #2f58ff;
   --signal-light: #8fa8ff;
   --fusion: #e5392b;
+  --fusion-light: #ff6b5c;
   --dawn: #f4c9a0;
 
   --text-muted: color-mix(in srgb, var(--readable) 72%, transparent);

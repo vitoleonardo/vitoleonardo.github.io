@@ -43,7 +43,7 @@ Floor label is the building level that the chapter focuses.
 | stop-data | 12 | Four delivery pipes meeting at a tank, red alarm lamp | Swings east under the ceiling, looks down on the confluence | 1.2 | data | none |
 | stop-ai-products | 16 | AI core with orbit ring: retrieve, reason, act, evaluate | Quarter orbit to the west front corner | 1.2 | ai-core | none |
 | stop-ai-coding | 20 | Fusion rocket on the east launch deck, seen from below | Light turns fusion red, rocket lifts off | 1.6 | rocket | rocket-launch |
-| stop-teaching | 24 | Spiral of twenty lights in the glass crown, four rings | Follows the rocket up, looks down into the spiral | 1.3 | teaching | none |
+| stop-teaching | 24 | Spiral of twenty lights in the glass crown, four rings | Follows the rocket up, looks down into the spiral | 1.8 | teaching | none |
 | about | 28 | Six metre light wall with portrait above DJ booth and homelab rack | Clears the parapet at blue hour, wall powers up | 1.4 | lounge | lounge-service-0 to 9 |
 | say-hi | mast | Lattice antenna mast with slow warm beacon, Cologne at dawn | Wide pullback, beacon sweeps, sky turns to morning | 1.2 | beacon | say-hi-beacon |
 
@@ -63,7 +63,7 @@ World channels per chapter (key / ambient / practicals / fog / rain / red / dawn
 | about | 0.45 | 0.4 | 0.85 | 0.2 | 0 | 0 | 0.45 | 0.35 | 1 |
 | say-hi | 0.9 | 0.55 | 0.7 | 0.15 | 0 | 0 | 1 | 0.45 | 1 |
 
-`floorsLit` is 1 in hero and index in the ledger and 7 from stop-frontend on; the index cascade is interpolated between these values. `pulse` is 0 in every chapter.
+`floorsLit` is 1 in hero and 7 from index on in the ledger; the index cascade runs while the camera flies from the hero to the index and is interpolated between these values. Each lit floor adds a warm interior wash behind the cutaway, faded out once the camera is inside the tower. `pulse` is 0 in every chapter.
 
 ## Camera ledger
 
@@ -71,15 +71,15 @@ Positions and targets in metres; "approach" is the entry point before the chapte
 
 | Chapter | Desktop position | Desktop target | fov | Mobile position | Mobile target | Mobile fov |
 |---|---|---|---|---|---|---|
-| hero | -6, 1.7, 34 | 0, 15, 0 | 58 | -4, 3, 58 | 0, 14.6, 0 | 69 |
-| index | 52, 22, 62 | 2, 14, 0 | 28 | 60, 26, 84 | 3, 13.2, 0 | 42 |
+| hero | -6, 1.7, 34 | 0, 15, 0 | 58 | -4, 1.7, 72 | 0, 2.2, 0 | 69 |
+| index | 52, 22, 62 | 2, 14, 0 | 28 | 82, 24.4, 117 | 3, -0.6, 0 | 55 |
 | stop-frontend | -2.4, 1.65, 8.6 | 0.5, 1.6, -2.5 | 58 | -1, 1.7, 12 | 0.5, 1.6, -2.5 | 62 |
 | stop-backend | 2, 6.1, 8.9 | 0.8, 5, -3 | 52 | 1.8, 6, 9.4 | 1.2, 5, -3 | 56 |
 | stop-cloud | -1.6, 10.2, 8.64 | -5, 9.6, 0.8 | 52 | -4, 10.3, 8.6 | -5.2, 8.6, 1 | 60 |
 | stop-data | -0.8, 15.2, 8.7 | 1.6, 13.3, -0.2 | 54 | 0, 15.2, 8.6 | 1.4, 13.2, 0.4 | 62 |
 | stop-ai-products | -7, 17.8, 8.6 | 0, 17.6, -0.5 | 50 | -6, 17.9, 11.5 | 0, 17.6, -0.5 | 60 |
 | stop-ai-coding | 13, 18.8, 8 | 11, 24.5, 0 | 50 | 13.5, 18.6, 11 | 11, 24.8, 0 | 66 |
-| stop-teaching | 2, 27.3, 8.4 | -0.5, 24.6, -0.5 | 50 | 1.5, 27.3, 13 | -0.5, 24.8, -0.5 | 60 |
+| stop-teaching | 0.2, 27.3, 8.4 | -0.5, 24.6, -0.5 | 50 | 1.5, 27.3, 13 | -0.5, 24.8, -0.5 | 60 |
 | about | 4.4, 29.8, 8.2 | 2.3, 31.5, -5.4 | 43 | 3.1, 30.4, 12.2 | 2.6, 31.6, -5.4 | 58 |
 | say-hi | -19, 25.5, 50 | -2.5, 32.5, -3.5 | 42 | -22, 24, 70 | -2.5, 31, -3.5 | 50 |
 
