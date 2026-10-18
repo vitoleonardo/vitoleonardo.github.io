@@ -8,6 +8,7 @@ import './styles/cursor.css'
 import './styles/scramble.css'
 import { conductorSource, createChapterFeed, viewportSource } from './dom/chapter-source'
 import { initCursor } from './dom/cursor'
+import { initEmailButton } from './dom/email-button'
 import { initRail } from './dom/rail'
 import { initReveal } from './dom/reveal'
 import { initScramble } from './dom/scramble'
@@ -29,6 +30,7 @@ const rail = initRail(
 )
 initCursor()
 initScramble()
+initEmailButton()
 const interactions = initInteractions({ sections, chapters: feed, reducedMotion: () => env.reducedMotion })
 feed.connect(viewportSource(sections))
 root.classList.add('dom-ready')

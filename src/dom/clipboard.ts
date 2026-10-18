@@ -1,15 +1,5 @@
 const STATUS_CLEAR_MS = 5000
 
-export function addressFromMailto(href: string): string {
-  const withoutScheme = href.replace(/^mailto:/i, '')
-  const address = withoutScheme.split('?')[0]
-  try {
-    return decodeURIComponent(address)
-  } catch {
-    return address
-  }
-}
-
 function copyWithSelection(text: string): boolean {
   const field = document.createElement('textarea')
   field.value = text
@@ -43,7 +33,7 @@ export async function copyText(text: string): Promise<boolean> {
 
 let clearTimer = 0
 
-export function announce(status: HTMLElement, message: string): void {
+export function announceStatus(status: HTMLElement, message: string): void {
   window.clearTimeout(clearTimer)
   status.textContent = ''
   requestAnimationFrame(() => {
@@ -52,15 +42,4 @@ export function announce(status: HTMLElement, message: string): void {
       status.textContent = ''
     }, STATUS_CLEAR_MS)
   })
-}
-
-export async function copyEmailFrom(scope: ParentNode): Promise<boolean> {
-  const link = scope.querySelector<HTMLAnchorElement>('a[href^="mailto:"]')
-  const status = scope.querySelector<HTMLElement>('.copy-status')
-  if (!link || !status) return false
-  const address = addressFromMailto(link.getAttribute('href') ?? '')
-  const copied = await copyText(address)
-  const confirmation = scope.querySelector<HTMLElement>('.copy-done')?.textContent?.trim() ?? address
-  announce(status, copied ? confirmation : address)
-  return copied
 }

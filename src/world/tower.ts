@@ -4,6 +4,7 @@ import {
   BufferGeometry,
   Color,
   CylinderGeometry,
+  DoubleSide,
   Float32BufferAttribute,
   FogExp2,
   Group,
@@ -77,6 +78,8 @@ const bikeStandXs = [-6.2, -5.2, -4.2] as const
 const bikeStandZ = 9.2
 const litterBin = [1.2, 10.4] as const
 const interiorEdgeDimming = 0.6
+const interiorWashStrength = 0.11
+const interiorWashInset = 0.4
 const kerbZ = 11
 
 export const entrance = {
@@ -796,6 +799,25 @@ export const createTower: FloorFactory = (context) => {
   )
   const stripScratch = new Color()
 
+  const washFaces = 3
+  const washMatrices = Array.from({ length: indexedFloorCount * washFaces }, (_, index) => {
+    const floor = Math.floor(index / washFaces)
+    const face = index % washFaces
+    const y = floor * storey + storey / 2
+    const height = storey - slab - 0.3
+    const span = half * 2 - 0.6
+    if (face === 0) return composeMatrix([0, y, -half + interiorWashInset], [0, 0, 0], [span, height, 1])
+    const side = face === 1 ? -1 : 1
+    return composeMatrix([side * (half - interiorWashInset), y, 0], [0, Math.PI / 2, 0], [span, height, 1])
+  })
+  const interiorWash: InstancedMesh = instances(
+    new PlaneGeometry(1, 1),
+    new MeshBasicMaterial({ transparent: true, depthWrite: false, blending: AdditiveBlending, fog: false, side: DoubleSide }),
+    washMatrices,
+    washMatrices.map(() => new Color(0x000000)),
+  )
+  interiorWash.renderOrder = 1
+
   const doorEmitter = createEmitter(palette.warm, 1.6)
   const door = new Mesh(doorGeometry(), doorEmitter.material)
 
@@ -870,6 +892,7 @@ export const createTower: FloorFactory = (context) => {
     steelDetail,
     glass,
     strips,
+    interiorWash,
     door,
     road,
     wetReflections.mesh,
@@ -889,14 +912,18 @@ export const createTower: FloorFactory = (context) => {
     const interior = smoothstep(chapterIndex.frontend - 1, chapterIndex.frontend, progress.smooth) * (1 - smoothstep(chapterIndex.aiProducts, chapterIndex.aiCoding, progress.smooth))
     const underDeck = smoothstep(chapterIndex.aiCoding - 0.85, chapterIndex.aiCoding - 0.25, progress.smooth) * (1 - smoothstep(chapterIndex.aiCoding + 0.35, chapterIndex.aiCoding + 0.95, progress.smooth))
     const edgeLevel = (1 - interiorEdgeDimming * interior) * (1 - underDeck)
+    const washLevel = (1 - interior) * (1 - underDeck)
     for (let floor = 0; floor < indexedFloorCount; floor += 1) {
       indexEmphasis[floor] = reducedMotion ? indexTarget[floor] : approach(indexEmphasis[floor], indexTarget[floor], 10, dt)
       const lit = smoothstep(0, 1, world.floorsLit - floor)
       const intensity = (0.05 + lit * 0.8) * edgeLevel + indexEmphasis[floor] * 1.2
       stripScratch.copy(stripColor).multiplyScalar(intensity)
       for (let face = 0; face < 3; face += 1) strips.setColorAt(floor * 3 + face, stripScratch)
+      stripScratch.copy(stripColor).multiplyScalar((lit * interiorWashStrength + indexEmphasis[floor] * 0.2) * washLevel)
+      for (let face = 0; face < washFaces; face += 1) interiorWash.setColorAt(floor * washFaces + face, stripScratch)
     }
     if (strips.instanceColor) strips.instanceColor.needsUpdate = true
+    if (interiorWash.instanceColor) interiorWash.instanceColor.needsUpdate = true
 
     const daylight = 1 - world.dawn * 0.45
     doorEmitter.set(1.6 * daylight)

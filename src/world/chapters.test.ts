@@ -28,7 +28,7 @@ const expectedWeights: Record<ChapterId, number> = {
   'stop-data': 1.2,
   'stop-ai-products': 1.2,
   'stop-ai-coding': 1.6,
-  'stop-teaching': 1.3,
+  'stop-teaching': 1.8,
   about: 1.4,
   'say-hi': 1.2,
 }
@@ -46,10 +46,15 @@ const contractInteractions = [
 interface LandmarkFrame {
   focal: Vec3
   extent: readonly Vec3[]
+  mobileExtent?: readonly Vec3[]
 }
 
 const landmarkFrames: Record<ChapterId, LandmarkFrame> = {
-  hero: { focal: [0, 14, 0], extent: [[-7, 0, 7], [7, 0, 7], [-7, 28, 7], [7, 28, 7]] },
+  hero: {
+    focal: [0, 14, 0],
+    extent: [[-7, 0, 7], [7, 0, 7], [-7, 28, 7], [7, 28, 7]],
+    mobileExtent: [[-7, 0, 7], [7, 0, 7], [-7, 4, 7], [7, 4, 7]],
+  },
   index: { focal: [0, 14, 0], extent: [[-7, 0, 7], [7, 0, 7], [-7, 28, 7], [7, 28, 7], [15, 20, 4]] },
   'stop-frontend': {
     focal: [1.2, 1.75, -2.6],
@@ -79,6 +84,7 @@ const desktopViewport = { width: 1440, height: 900 }
 const mobileViewport = { width: 390, height: 844 }
 const READING_ZONE_RIGHT_EDGE = 0.4
 const BOTTOM_SHEET_TOP = 0.5
+const MEASURED_SHEET_TOP = 0.34
 const MOBILE_RAIL_BOTTOM = 0.1
 
 function screenPosition(pose: CameraPose, point: Vec3, mobile: boolean): { x: number; y: number } {
@@ -131,10 +137,10 @@ describe('chapter ledger', () => {
     }
   })
 
-  test('the floors cascade on inside the index chapter', () => {
+  test('the floors cascade on while the camera flies from the hero to the index', () => {
     const lit = chapters.map((chapter) => chapter.world.floorsLit)
-    expect(lit.slice(0, 2)).toEqual([1, 1])
-    expect(lit.slice(2).every((floors) => floors === 7)).toBe(true)
+    expect(lit[0]).toBe(1)
+    expect(lit.slice(1).every((floors) => floors === 7)).toBe(true)
   })
 
   test('the launch runs across the ai-coding chapter and stays complete afterwards', () => {
@@ -188,15 +194,28 @@ describe('composition', () => {
 
   test.each(chaptersById)('%s keeps its landmark above the mobile bottom sheet', (id, chapter) => {
     const pose = resolvePose(chapter, true)
-    const { focal, extent } = landmarkFrames[id]
+    const { focal, extent, mobileExtent = extent } = landmarkFrames[id]
     const centre = screenPosition(pose, focal, true)
     expect(centre.x).toBeGreaterThanOrEqual(0.1)
     expect(centre.x).toBeLessThanOrEqual(0.9)
     expect(centre.y).toBeGreaterThanOrEqual(0.05)
     expect(centre.y).toBeLessThanOrEqual(0.5)
-    for (const point of extent) {
+    for (const point of mobileExtent) {
       const { y } = screenPosition(pose, point, true)
       expect(y).toBeLessThanOrEqual(BOTTOM_SHEET_TOP)
+      expect(y).toBeGreaterThanOrEqual(MOBILE_RAIL_BOTTOM)
+    }
+  })
+})
+
+describe('exterior chapters on mobile', () => {
+  test.each(['hero', 'index'] as const)('%s fits its landmark into the strip above the measured sheet', (id) => {
+    const chapter = chapters[chapterOrder.indexOf(id)]
+    const { extent, mobileExtent = extent } = landmarkFrames[id]
+    const pose = resolvePose(chapter, true)
+    for (const point of mobileExtent) {
+      const { y } = screenPosition(pose, point, true)
+      expect(y).toBeLessThanOrEqual(MEASURED_SHEET_TOP)
       expect(y).toBeGreaterThanOrEqual(MOBILE_RAIL_BOTTOM)
     }
   })

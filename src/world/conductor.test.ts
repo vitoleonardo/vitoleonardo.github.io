@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest'
-import { anchorsFromLayout, chapterAt, progressFromScroll } from './conductor'
+import { anchorsFromLayout, chapterAt, layoutShifted, progressFromScroll, scrollFromProgress } from './conductor'
 
 const viewport = 900
 const weights = [1.2, 1.4, 1.3, 1.2, 1.2, 1.2, 1.2, 1.6, 1.3, 1.4, 1.2]
@@ -59,5 +59,39 @@ describe('chapterAt', () => {
     expect(chapterAt(0.5, 11)).toBe(1)
     expect(chapterAt(-1, 11)).toBe(0)
     expect(chapterAt(42, 11)).toBe(10)
+  })
+})
+
+describe('scrollFromProgress', () => {
+  test('inverts progressFromScroll inside the scroll range', () => {
+    for (const progress of [0, 0.25, 1, 1.5, 6.8, 9.99, 10]) {
+      expect(progressFromScroll(scrollFromProgress(progress, anchors), anchors)).toBeCloseTo(progress)
+    }
+  })
+
+  test('keeps the reader in the same chapter and local progress after the layout changes', () => {
+    const before = progressFromScroll(tops[4] + heights[4] * 0.4, anchors)
+    const stretchedTops = tops.map((top) => top * 1.7)
+    const stretched = anchorsFromLayout(stretchedTops, maxScroll * 1.7)
+    const restored = progressFromScroll(scrollFromProgress(before, stretched), stretched)
+    expect(restored).toBeCloseTo(before)
+  })
+
+  test('clamps outside the chapter range and handles a single anchor', () => {
+    expect(scrollFromProgress(-3, anchors)).toBe(0)
+    expect(scrollFromProgress(99, anchors)).toBe(anchors[anchors.length - 1])
+    expect(scrollFromProgress(0.5, [0])).toBe(0)
+  })
+})
+
+describe('layoutShifted', () => {
+  test('ignores the first measurement and sub-pixel noise', () => {
+    expect(layoutShifted([], anchors)).toBe(false)
+    expect(layoutShifted(anchors, anchors.map((anchor) => anchor + 0.4))).toBe(false)
+  })
+
+  test('detects moved or removed anchors', () => {
+    expect(layoutShifted(anchors, anchors.map((anchor) => anchor * 1.2))).toBe(true)
+    expect(layoutShifted(anchors, anchors.slice(1))).toBe(true)
   })
 })

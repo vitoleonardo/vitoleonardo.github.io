@@ -5,6 +5,7 @@ const DEFAULT_DAMPING = 5.2
 const MAX_STEP_SECONDS = 1 / 30
 const SETTLE_EPSILON = 0.0001
 const DIRECTION_EPSILON_PX = 0.25
+const LAYOUT_SHIFT_PX = 1
 const SECTION_SELECTOR = 'main .chapter'
 
 export type ChapterListener = (chapter: number, state: Readonly<ConductorState>) => void
@@ -45,6 +46,20 @@ export function progressFromScroll(scrollY: number, anchors: readonly number[]):
   while (scrollY > anchors[index + 1]) index += 1
   const span = anchors[index + 1] - anchors[index]
   return index + clamp((scrollY - anchors[index]) / span, 0, 1)
+}
+
+export function scrollFromProgress(progress: number, anchors: readonly number[]): number {
+  if (anchors.length < 2) return 0
+  const last = anchors.length - 1
+  const bounded = clamp(progress, 0, last)
+  const index = Math.min(Math.floor(bounded), last - 1)
+  return anchors[index] + (bounded - index) * (anchors[index + 1] - anchors[index])
+}
+
+export function layoutShifted(before: readonly number[], after: readonly number[]): boolean {
+  if (before.length === 0) return false
+  if (before.length !== after.length) return true
+  return before.some((anchor, index) => Math.abs(anchor - after[index]) > LAYOUT_SHIFT_PX)
 }
 
 export function chapterAt(exact: number, count: number): number {
@@ -117,7 +132,12 @@ export function createConductor(options: ConductorOptions): Conductor {
   }
 
   function remeasure(): void {
+    const keptProgress = state.exact
+    const previousAnchors = anchors
     measure()
+    if (layoutShifted(previousAnchors, anchors)) {
+      window.scrollTo({ top: scrollFromProgress(keptProgress, anchors), behavior: 'instant' })
+    }
     readScroll()
   }
 
