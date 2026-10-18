@@ -12,6 +12,7 @@ import {
   WebGLRenderer,
 } from 'three'
 import { env } from '../env'
+import { createArchitecture } from './architecture'
 import { createAtmosphere } from './atmosphere'
 import { createCameraRig, type Viewport } from './camera-rig'
 import { chapters } from './chapters'
@@ -120,6 +121,7 @@ function disposeSharedTextures(textures: SharedTextures): void {
 function buildFloorSets(context: FloorContext): FloorSet[] {
   const atmosphere = createAtmosphere(context)
   const tower = createTower(context)
+  const architecture = createArchitecture(context)
   const floors = floorFactories.map((factory) => factory(context))
 
   const worldRoot = new Group()
@@ -131,13 +133,13 @@ function buildFloorSets(context: FloorContext): FloorSet[] {
   const chapterSets = new Group()
   chapterSets.name = 'chapter-sets'
   environment.add(atmosphere.root)
-  landmarks.add(tower.root)
+  landmarks.add(tower.root, architecture.root)
   for (const floor of floors) chapterSets.add(floor.root)
   worldRoot.add(environment, landmarks, chapterSets)
   context.scene.add(worldRoot)
   context.scene.fog = atmosphere.fog
 
-  return [atmosphere, tower, ...floors]
+  return [atmosphere, tower, architecture, ...floors]
 }
 
 export async function initWorld(canvas: HTMLCanvasElement): Promise<WorldApi> {

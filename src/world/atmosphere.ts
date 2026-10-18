@@ -38,9 +38,9 @@ const dustCapacity = 1800
 const rainBox = [46, 30, 46] as const
 const timeWrap = 600
 const keyTarget = [2, 14, 0] as const
-const keyOffset = [-28, 52, 44] as const
-const keyStrength = 2.1
-const hemisphereStrength = 1.35
+const keyOffset = [-31, 40, 46] as const
+const keyStrength = 2.5
+const hemisphereStrength = 1.5
 const environmentStrength = 0.85
 const skyTint = '#566797'
 const groundBounce = '#1D1B1E'
@@ -488,7 +488,7 @@ export function createAtmosphere(context: FloorContext): FloorSet & { fog: FogEx
 
     key.intensity = keyStrength * world.key
     key.color.copy(moonColor).lerp(dawnColor, afterBlueHour(world.dawn) * 0.7).lerp(redColor, world.red * 0.25)
-    key.castShadow = quality.shadows > 0
+    key.castShadow = quality.shadows > 0 && !frame.mobile
     hemisphere.intensity = hemisphereStrength * world.ambient
     hemisphere.color.copy(skyColor).lerp(dawnColor, afterBlueHour(world.dawn) * 0.5)
     scene.environmentIntensity = environmentStrength * world.ambient + world.dawn * 0.2
