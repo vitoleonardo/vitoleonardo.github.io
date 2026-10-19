@@ -19,7 +19,7 @@ The page is a night-lit engineering tower in Cologne that you climb by scrolling
 ```mermaid
 flowchart TD
   main["main.ts"] --> loader["loading curtain: blueprint draws while the world boots"]
-  main --> i18n["i18n + DOM (reveal, rail, cursor, scramble, email)"]
+  main --> i18n["i18n + DOM (reveal, rail, cursor, glyph stream, scramble, email)"]
   main --> feed["chapter feed (viewport source)"]
   main -->|"webgl only, dynamic import"| world["world/index.ts"]
   world -->|"onStage"| loader

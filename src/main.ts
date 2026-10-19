@@ -10,6 +10,7 @@ import './styles/loader.css'
 import { conductorSource, createChapterFeed, viewportSource } from './dom/chapter-source'
 import { initCursor } from './dom/cursor'
 import { initEmailButton } from './dom/email-button'
+import { initGlyphStream } from './dom/glyph-stream'
 import { initRail } from './dom/rail'
 import { initReveal } from './dom/reveal'
 import { initScramble } from './dom/scramble'
@@ -32,6 +33,7 @@ const rail = initRail(
   feed,
   sections.map((section) => section.id),
 )
+initGlyphStream()
 initCursor()
 initScramble()
 initEmailButton()
