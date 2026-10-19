@@ -212,7 +212,7 @@ export const de: Content = {
       proof: [
         {
           title: 'Digitale Leute School, 2026',
-          detail: 'Mentor im Bootcamp AI Software Engineering. Ich habe die Übungen geschrieben und bewertet, gemerkt, wer feststeckt, und eins zu eins geholfen.',
+          detail: 'Mentor im Bootcamp AI Software Engineering. Übungen geschrieben, bewertet, eins zu eins geholfen.',
         },
         {
           title: 'Alle haben geliefert',
@@ -220,15 +220,16 @@ export const de: Content = {
         },
         {
           title: 'Küchen beim Mit Dir Festival',
-          detail: 'Freiwillige kommen als Fremde. Ein paar Stunden später sind sie ein Team von 8 bis 14, kochen für 500, und die Stimmung hält über lange Schichten.',
+          detail: 'Freiwillige kommen als Fremde und kochen Stunden später als Team von 8 bis 14 für 500.',
         },
         {
           title: 'Zwischen Entwicklung, Kunden und Business',
-          detail: 'Ich übersetze Wünsche in Technik und Technik zurück in Entscheidungen, die alle verstehen.',
+          detail: 'Ich übersetze Wünsche in Technik und Technik in klare Entscheidungen.',
         },
       ],
+      ringHeading: 'Bootcamp-Module, je ein blauer Ring',
       ringLabels: ['01 Produktkompetenz', '02 Grundlagen', '03 Engineering mit KI', '04 Agentische KI'],
-      footer: '20 Lichter, eines pro laufender App',
+      footer: '20 Lichter auf der Treppe, eines pro Person, die geliefert hat',
     },
   ],
   about: {

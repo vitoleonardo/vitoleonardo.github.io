@@ -388,6 +388,15 @@ html:not(.js) .email-button {
   border-inline: 1px solid var(--blueprint);
 }
 
+.ring-heading {
+  margin-bottom: calc(var(--space-2) * -1);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--blue-mist);
+}
+
 .proof-list {
   --index-inset: 11px;
   display: grid;
@@ -645,9 +654,18 @@ html:not(.js) .email-button {
 }
 
 .service-list {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 14rem), 1fr));
   gap: 0 var(--space-6);
+}
+
+.service-list li {
+  min-width: 0;
+}
+
+.service-list .hotspot em {
+  min-width: 2ch;
+  text-align: right;
 }
 
 .service-list .hotspot {
@@ -770,6 +788,27 @@ html:not(.js) .email-button {
   #index,
   #stop-teaching {
     align-items: flex-start;
+  }
+
+  #stop-teaching {
+    padding-top: calc(var(--header-height) + var(--space-6));
+  }
+
+  #stop-teaching .chapter-copy {
+    gap: var(--space-3);
+  }
+
+  #stop-teaching h2 {
+    font-size: clamp(1.875rem, 2.9vw, 2.625rem);
+  }
+
+  #stop-teaching .tool-list,
+  #stop-teaching .ring-list {
+    gap: var(--space-2) 0;
+  }
+
+  #stop-teaching .proof-list li {
+    padding-bottom: 8px;
   }
 
   .dom-ready:not(.rm, .no-webgl) .chapter-copy > :not([data-split]),
@@ -1019,9 +1058,23 @@ html:not(.js) .email-button {
     gap: var(--space-2);
   }
 
-  .hotspot-row,
-  .service-list {
+  .hotspot-row {
     gap: 0 var(--space-3);
+  }
+
+  .service-list {
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 9rem), 1fr));
+    gap: 0 var(--space-3);
+  }
+
+  .service-list .hotspot {
+    gap: var(--space-2);
+    letter-spacing: 0.02em;
+    text-align: left;
+  }
+
+  .service-list .hotspot::before {
+    display: none;
   }
 
   .homelab-readout {

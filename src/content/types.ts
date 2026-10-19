@@ -27,6 +27,7 @@ export interface Stop {
   stats?: StatItem[]
   statsNote?: string[]
   annotation?: { title?: string; note: string }
+  ringHeading?: string
   ringLabels?: string[]
   labels?: string[]
   labelNotes?: string[]

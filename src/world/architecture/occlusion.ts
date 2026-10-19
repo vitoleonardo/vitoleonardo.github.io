@@ -27,10 +27,11 @@ export function smooth(edgeStart: number, edgeEnd: number, value: number): numbe
   return t * t * (3 - 2 * t)
 }
 
-export function wallShade(reach: number, floor = 0.5): Shade {
+export function exteriorShade(reach: number, floor = 0.42, undersideDim = 0.6): Shade {
   return (x, _y, z, normalY) => {
     const open = smooth(0, reach, distanceOutsideTower(x, z))
-    const upward = 0.5 + 0.5 * Math.max(0, normalY)
-    return floor + (1 - floor) * Math.max(open, upward * 0.6)
+    const upward = normalY > 0.5 ? 0.35 : 0
+    const lit = floor + (1 - floor) * Math.max(open, upward)
+    return normalY < -0.5 ? lit * undersideDim : lit
   }
 }

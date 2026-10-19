@@ -30,6 +30,8 @@ export const palette = {
   signal: '#2F58FF',
   fusion: '#E5392B',
   dawn: '#F4C9A0',
+  foliage: '#1C4A2C',
+  foliageLight: '#5E9A3E',
 } as const
 
 export const towerSpec = {

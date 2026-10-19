@@ -201,7 +201,7 @@ export const en: Content = {
       proof: [
         {
           title: 'Digitale Leute School, 2026',
-          detail: 'Mentor at the AI Software Engineering Bootcamp. I wrote and graded the exercises, noticed who was stuck and helped one on one.',
+          detail: 'Mentor at the AI Software Engineering Bootcamp. I wrote and graded the exercises and helped one on one.',
         },
         {
           title: 'Every student shipped',
@@ -209,15 +209,16 @@ export const en: Content = {
         },
         {
           title: 'Mit Dir Festival kitchens',
-          detail: 'Volunteers arrive as strangers. A few hours later they are a team of 8 to 14 cooking for 500, and the mood holds through long shifts.',
+          detail: 'Volunteers arrive as strangers and hours later cook for 500 as a team of 8 to 14.',
         },
         {
           title: 'Between devs, clients and business',
           detail: 'I turn wishes into tech, and tech back into decisions everyone understands.',
         },
       ],
+      ringHeading: 'Bootcamp modules, one blue ring each',
       ringLabels: ['01 Product skills', '02 Foundations', '03 Engineering with AI', '04 Agentic AI'],
-      footer: '20 lights, one per running app',
+      footer: '20 lights on the stairs, one per student who shipped',
     },
   ],
   about: {

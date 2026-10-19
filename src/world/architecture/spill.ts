@@ -14,11 +14,9 @@ export interface FacadeRhythm {
   stripeWidth: number
 }
 
-export const spillRhythm: Readonly<Record<'mullions' | 'fins' | 'diagrid' | 'terraces', FacadeRhythm>> = {
+export const spillRhythm: Readonly<Record<'mullions' | 'fins', FacadeRhythm>> = {
   mullions: { stripePeriod: 2, stripeWidth: 0.09 },
   fins: { stripePeriod: 1, stripeWidth: 0.22 },
-  diagrid: { stripePeriod: 3.7, stripeWidth: 0.16 },
-  terraces: { stripePeriod: 2, stripeWidth: 0.06 },
 }
 
 const vertexShader = `
