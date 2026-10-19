@@ -6,3 +6,5 @@ de/index.html
 __pycache__
 .venv
 docs/motion/raw
+docs/qa
+docs/reports

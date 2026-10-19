@@ -3,75 +3,63 @@ import '@fontsource-variable/schibsted-grotesk/wght-italic.css'
 import '@fontsource-variable/jetbrains-mono/wght.css'
 import './styles/tokens.css'
 import './styles/base.css'
-import './styles/sections.css'
+import './styles/chapters.css'
+import './styles/cursor.css'
+import './styles/scramble.css'
+import { conductorSource, createChapterFeed, viewportSource } from './dom/chapter-source'
+import { initCursor } from './dom/cursor'
+import { initEmailButton } from './dom/email-button'
+import { initRail } from './dom/rail'
+import { initReveal } from './dom/reveal'
+import { initScramble } from './dom/scramble'
 import { env } from './env'
-import { motionDebug } from './debug/probe'
-import { resolvePath } from './path-bridge'
 import { initI18n } from './i18n'
-
-if (motionDebug) void import('./debug/motion-log').then((module) => module.startMotionLog())
+import type { WorldApi } from './world'
+import { initInteractions } from './world/interactions'
 
 initI18n()
 
-const LARGEST_PAINT_SETTLE_MS = 300
-const LARGEST_PAINT_LIMIT_MS = 1500
+const root = document.documentElement
+const sections = Array.from(document.querySelectorAll<HTMLElement>('main .chapter'))
+const feed = createChapterFeed()
 
-function afterLargestPaint(callback: () => void): void {
-  let started = false
-  const begin = (): void => {
-    if (started) return
-    started = true
-    callback()
-  }
+initReveal({ sections, chapters: feed, splitWords: env.webgl && !env.reducedMotion })
+const rail = initRail(
+  feed,
+  sections.map((section) => section.id),
+)
+initCursor()
+initScramble()
+initEmailButton()
+const interactions = initInteractions({ sections, chapters: feed, reducedMotion: () => env.reducedMotion })
+feed.connect(viewportSource(sections))
+root.classList.add('dom-ready')
+
+async function loadWorld(canvas: HTMLCanvasElement): Promise<WorldApi> {
+  const { initWorld } = await import('./world')
+  return initWorld(canvas)
+}
+
+async function startWorld(): Promise<void> {
+  const canvas = document.getElementById('world-canvas')
+  if (!(canvas instanceof HTMLCanvasElement)) return
+  let world: WorldApi
   try {
-    const observer = new PerformanceObserver(() => {
-      observer.disconnect()
-      window.setTimeout(begin, LARGEST_PAINT_SETTLE_MS)
-    })
-    observer.observe({ type: 'largest-contentful-paint', buffered: true })
+    world = await loadWorld(canvas)
   } catch {
-    begin()
+    root.classList.add('no-webgl')
     return
   }
-  window.setTimeout(begin, LARGEST_PAINT_LIMIT_MS)
+  const { createPicker } = await import('./world/picker')
+  feed.connect(conductorSource(world.conductor))
+  rail.followCamera({ camera: world.camera, onFrame: (listener) => world.onFrame(listener) })
+  interactions.attachWorld({
+    proxies: world.proxies,
+    cameraMatrix: world.camera.matrixWorld,
+    onFrame: (listener) => world.onFrame(listener),
+    pick: createPicker(world.camera, canvas),
+    scrollToChapter: (index) => world.conductor.scrollToChapter(index),
+  })
 }
 
-const startMotion = (): void => {
-  void import('./motion').then((module) => module.initMotion())
-}
-
-if (env.mobile) afterLargestPaint(startMotion)
-else startMotion()
-
-function startPath(): void {
-  const canvas = document.getElementById('path-canvas')
-  if (!(canvas instanceof HTMLCanvasElement)) {
-    resolvePath(null)
-    return
-  }
-  import('./three')
-    .then((module) => module.initPath(canvas))
-    .then((api) => resolvePath(api))
-    .catch(() => {
-      document.documentElement.classList.add('no-webgl')
-      resolvePath(null)
-    })
-}
-
-const MOBILE_PATH_IDLE_TIMEOUT_MS = 2500
-
-function afterLoadAndIdle(callback: () => void): void {
-  const whenIdle = (): void => {
-    if (typeof window.requestIdleCallback === 'function') window.requestIdleCallback(() => callback(), { timeout: MOBILE_PATH_IDLE_TIMEOUT_MS })
-    else requestAnimationFrame(() => callback())
-  }
-  if (document.readyState === 'complete') whenIdle()
-  else window.addEventListener('load', whenIdle, { once: true })
-}
-
-if (env.webgl && !env.reducedMotion) {
-  if (env.mobile) afterLargestPaint(() => afterLoadAndIdle(startPath))
-  else startPath()
-} else {
-  resolvePath(null)
-}
+if (env.webgl) void startWorld()

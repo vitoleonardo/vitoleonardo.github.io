@@ -1,0 +1,27 @@
+.scramble-letter {
+  position: relative;
+}
+
+.scramble-letter[data-glyph] {
+  -webkit-text-fill-color: transparent;
+}
+
+.scramble-letter[data-glyph]::after {
+  content: attr(data-glyph);
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  font-family: var(--font-mono);
+  font-size: 0.86em;
+  font-style: normal;
+  letter-spacing: 0;
+  line-height: 1;
+  white-space: pre;
+  -webkit-text-fill-color: currentColor;
+  pointer-events: none;
+}
+
+.scramble-twin {
+  user-select: none;
+}

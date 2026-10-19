@@ -1,0 +1,142 @@
+.has-custom-cursor,
+.has-custom-cursor * {
+  cursor: none !important;
+}
+
+.has-custom-cursor
+  :is(
+    input:not([type='checkbox'], [type='radio'], [type='button'], [type='submit'], [type='range']),
+    textarea,
+    [contenteditable]:not([contenteditable='false'])
+  ) {
+  cursor: text !important;
+}
+
+.has-custom-cursor select {
+  cursor: default !important;
+}
+
+.cursor {
+  --cursor-outline: color-mix(in srgb, var(--night) 88%, transparent);
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 200;
+  width: 0;
+  height: 0;
+  color: var(--readable);
+  opacity: 0;
+  pointer-events: none;
+  will-change: transform;
+  transition: opacity 0.18s;
+}
+
+.cursor.is-visible:not([data-mode='native']) {
+  opacity: 1;
+}
+
+.cursor-cross,
+.cursor-ring {
+  position: absolute;
+  transition: transform 0.24s var(--ease-out), opacity 0.16s;
+}
+
+.cursor-cross {
+  left: -16px;
+  top: -16px;
+  width: 32px;
+  height: 32px;
+  filter: drop-shadow(1px 0 0 var(--cursor-outline)) drop-shadow(-1px 0 0 var(--cursor-outline))
+    drop-shadow(0 1px 0 var(--cursor-outline)) drop-shadow(0 -1px 0 var(--cursor-outline));
+}
+
+.cursor-cross::before,
+.cursor-cross::after {
+  content: '';
+  position: absolute;
+  background: currentColor;
+}
+
+.cursor-cross::before {
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 1px;
+  margin-top: -0.5px;
+  mask-image: linear-gradient(to right, #000 0 34%, transparent 34% 66%, #000 66%);
+}
+
+.cursor-cross::after {
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 1px;
+  margin-left: -0.5px;
+  mask-image: linear-gradient(to bottom, #000 0 34%, transparent 34% 66%, #000 66%);
+}
+
+.cursor-ring {
+  left: -14px;
+  top: -14px;
+  width: 28px;
+  height: 28px;
+  border: 1.5px solid var(--signal-light);
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--signal) 14%, transparent);
+  box-shadow:
+    0 0 0 1px var(--cursor-outline),
+    inset 0 0 0 1px var(--cursor-outline);
+  opacity: 0;
+  transform: scale(0.4);
+}
+
+.cursor[data-mode='ring'] .cursor-ring {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.cursor[data-mode='ring'] .cursor-cross {
+  opacity: 0;
+  transform: scale(1.5);
+}
+
+.cursor[data-pressed] .cursor-ring {
+  transform: scale(0.78);
+}
+
+.cursor[data-pressed] .cursor-cross {
+  transform: scale(0.85);
+}
+
+.cursor-readout {
+  position: absolute;
+  left: 14px;
+  top: 12px;
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.04em;
+  line-height: 1.2;
+  white-space: nowrap;
+  color: var(--readable);
+  text-shadow:
+    1px 0 0 var(--cursor-outline),
+    -1px 0 0 var(--cursor-outline),
+    0 1px 0 var(--cursor-outline),
+    0 -1px 0 var(--cursor-outline),
+    0 0 3px var(--cursor-outline);
+}
+
+.cursor-readout:empty {
+  display: none;
+}
+
+.cursor[data-flip-x] .cursor-readout {
+  left: auto;
+  right: 14px;
+}
+
+.cursor[data-flip-y] .cursor-readout {
+  top: auto;
+  bottom: 12px;
+}

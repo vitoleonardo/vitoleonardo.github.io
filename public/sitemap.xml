@@ -2,18 +2,22 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">
   <url>
     <loc>https://vitoleonardo.github.io/</loc>
+    <lastmod>2026-10-18</lastmod>
     <xhtml:link rel="alternate" hreflang="en" href="https://vitoleonardo.github.io/"/>
     <xhtml:link rel="alternate" hreflang="de" href="https://vitoleonardo.github.io/de/"/>
   </url>
   <url>
     <loc>https://vitoleonardo.github.io/de/</loc>
+    <lastmod>2026-10-18</lastmod>
     <xhtml:link rel="alternate" hreflang="en" href="https://vitoleonardo.github.io/"/>
     <xhtml:link rel="alternate" hreflang="de" href="https://vitoleonardo.github.io/de/"/>
   </url>
   <url>
     <loc>https://vitoleonardo.github.io/impressum/</loc>
+    <lastmod>2026-10-18</lastmod>
   </url>
   <url>
     <loc>https://vitoleonardo.github.io/datenschutz/</loc>
+    <lastmod>2026-10-18</lastmod>
   </url>
 </urlset>

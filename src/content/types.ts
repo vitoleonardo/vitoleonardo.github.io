@@ -1,5 +1,3 @@
-import type { FigureId } from '../types'
-
 export interface ProofItem {
   title: string
   detail: string
@@ -17,7 +15,6 @@ export interface Link {
 
 export interface Stop {
   id: string
-  figure: FigureId
   number: string
   caption: string
   title: string
@@ -30,6 +27,7 @@ export interface Stop {
   stats?: StatItem[]
   statsNote?: string[]
   annotation?: { title?: string; note: string }
+  ringHeading?: string
   ringLabels?: string[]
   labels?: string[]
   labelNotes?: string[]
@@ -41,15 +39,16 @@ export interface UiStrings {
   skipLink: string
   mainNavLabel: string
   languageLabel: string
-  whatIDo: string
   stackCount: string
-  afterWork: string
-  lastSong: string
-  soundOff: string
   contactHeading: string
   contactLegalLabel: string
   thumbAlts: string[]
-  freelancermap: string
+  floorsLabel: string
+  railNumbers: string[]
+  railNames: string[]
+  previewFloor: string
+  replayLaunch: string
+  homelabHeading: string
 }
 
 export interface Content {
@@ -58,8 +57,10 @@ export interface Content {
   nav: { links: Link[]; switchLabel: string }
   hero: {
     pill: string
-    name: string
-    line: string
+    pillDetail: string
+    eyebrow: string
+    headline: string
+    proofPoints: { value: string; label: string }[]
     buttons: { primary: Link; secondary: Link }
     footer: string
   }
@@ -70,7 +71,6 @@ export interface Content {
     footer: string
     next: string
   }
-  stackLabel: string
   stops: Stop[]
   about: {
     caption: string
@@ -88,8 +88,11 @@ export interface Content {
     link: string
     line: string
     annotation: string
-    email: string
+    emailLabel: string
+    hintPointer: string
+    hintTouch: string
     copied: string
+    opening: string
     links: Link[]
     credit: string
   }

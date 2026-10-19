@@ -6,33 +6,32 @@ import { chromium } from 'playwright'
 const projectRoot = join(dirname(fileURLToPath(import.meta.url)), '..')
 const cardDir = join(projectRoot, 'node_modules', '.cache', 'og-card')
 const outputPath = join(projectRoot, 'public', 'og.png')
+const heroStillPath = join(projectRoot, 'public', 'posters', 'hero.webp')
 const fontDir = (family) => join(projectRoot, 'node_modules', '@fontsource-variable', family, 'files')
 const displayFont = join(fontDir('schibsted-grotesk'), 'schibsted-grotesk-latin-wght-normal.woff2')
 const monoFont = join(fontDir('jetbrains-mono'), 'jetbrains-mono-latin-wght-normal.woff2')
 
 const colours = {
-  paper: '#ECEBE6',
-  ink: '#111111',
-  blue: '#1F4BFF',
-  blueLight: '#6F8BFF',
-  blueDeep: '#1236C8',
-  blueMist: '#A9BBFF',
+  night: '#0A0E17',
+  readable: '#E9E5DB',
+  practical: '#FFB25E',
+  dawn: '#F4C9A0',
 }
 
-const cardHtml = (fontUrls) => `<!doctype html>
+const cardHtml = (assetUrls) => `<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <style>
 @font-face {
   font-family: 'Schibsted Grotesk Variable';
-  src: url('${fontUrls.display}') format('woff2');
+  src: url('${assetUrls.display}') format('woff2');
   font-weight: 400 900;
   font-display: block;
 }
 @font-face {
   font-family: 'JetBrains Mono Variable';
-  src: url('${fontUrls.mono}') format('woff2');
+  src: url('${assetUrls.mono}') format('woff2');
   font-weight: 100 800;
   font-display: block;
 }
@@ -42,21 +41,57 @@ html, body {
   width: 1200px;
   height: 630px;
   overflow: hidden;
-  background: ${colours.paper};
-  color: ${colours.ink};
+  background: ${colours.night};
+  color: ${colours.readable};
   font-family: 'Schibsted Grotesk Variable', system-ui, sans-serif;
 }
-.card { position: relative; width: 1200px; height: 630px; }
-.rule { position: absolute; left: 56px; right: 56px; top: 92px; height: 2px; background: ${colours.ink}; }
+.card { position: relative; width: 1200px; height: 630px; overflow: hidden; }
+.still {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 50% 62%;
+}
+.shade {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    rgba(10, 14, 23, 0.94) 0%,
+    rgba(10, 14, 23, 0.7) 44%,
+    rgba(10, 14, 23, 0.12) 100%
+  );
+}
+.site {
+  position: absolute;
+  left: 56px;
+  top: 44px;
+  margin: 0;
+  font-family: 'JetBrains Mono Variable', ui-monospace, monospace;
+  font-size: 20px;
+  letter-spacing: 0.04em;
+  color: ${colours.dawn};
+}
+.rule {
+  position: absolute;
+  left: 56px;
+  top: 92px;
+  width: 120px;
+  height: 2px;
+  background: ${colours.practical};
+}
 .name {
   position: absolute;
   left: 52px;
-  top: 150px;
+  top: 166px;
   margin: 0;
   font-size: 132px;
   font-weight: 800;
   line-height: 0.9;
   letter-spacing: -0.045em;
+  color: ${colours.readable};
 }
 .name span { display: block; }
 .role {
@@ -67,41 +102,16 @@ html, body {
   font-size: 40px;
   font-weight: 500;
   letter-spacing: -0.01em;
-}
-.site {
-  position: absolute;
-  left: 56px;
-  top: 40px;
-  font-family: 'JetBrains Mono Variable', ui-monospace, monospace;
-  font-size: 20px;
-  letter-spacing: 0.04em;
-}
-.sun {
-  position: absolute;
-  left: 872px;
-  top: 128px;
-  width: 260px;
-  height: 260px;
-  border-radius: 50%;
-  background: radial-gradient(circle at 36% 30%, ${colours.blueLight} 0%, ${colours.blue} 58%, ${colours.blueDeep} 100%);
-  box-shadow: 0 0 120px 40px rgba(31, 75, 255, 0.18);
-}
-.path {
-  position: absolute;
-  left: 989px;
-  top: 388px;
-  width: 22px;
-  height: 260px;
-  background: linear-gradient(to bottom, ${colours.blueMist}, rgba(169, 187, 255, 0.35));
+  color: ${colours.practical};
 }
 </style>
 </head>
 <body>
 <div class="card">
+  <img class="still" src="${assetUrls.heroStill}" alt="">
+  <div class="shade" aria-hidden="true"></div>
   <p class="site">vitoleonardo.github.io</p>
-  <div class="rule"></div>
-  <div class="sun" aria-hidden="true"></div>
-  <div class="path" aria-hidden="true"></div>
+  <div class="rule" aria-hidden="true"></div>
   <h1 class="name"><span>Vito</span><span>Krawutschke</span></h1>
   <p class="role">Full-stack and AI engineer, Cologne</p>
 </div>
@@ -111,11 +121,12 @@ html, body {
 
 await mkdir(cardDir, { recursive: true })
 const cardPath = join(cardDir, 'index.html')
-const fontUrls = {
+const assetUrls = {
   display: relative(cardDir, displayFont).split('\\').join('/'),
   mono: relative(cardDir, monoFont).split('\\').join('/'),
+  heroStill: relative(cardDir, heroStillPath).split('\\').join('/'),
 }
-await writeFile(cardPath, cardHtml(fontUrls))
+await writeFile(cardPath, cardHtml(assetUrls))
 
 const browser = await chromium.launch()
 try {
