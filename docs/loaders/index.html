@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script>document.documentElement.classList.add('js');if(matchMedia('(prefers-reduced-motion: reduce)').matches)document.documentElement.classList.add('rm')</script>
+<title>Loader showcase · The Tower</title>
+<meta name="robots" content="noindex">
+<script type="module" src="./showcase.ts"></script>
+</head>
+<body>
+<header class="showcase-head">
+  <div>
+    <h1>Loading curtain · four motifs</h1>
+    <p>Each panel plays the simulated boot pipeline (script 300 ms · textures 900 · compiled 1600 · ready 2100 · finish 2200) behind a full-screen curtain, then hands off into the fake rail and altimeter over the hero poster. Skip path = world ready in under 250 ms: no motif, fade only. Fullscreen shows real scale; Esc closes.</p>
+  </div>
+  <div class="showcase-controls">
+    <button type="button" data-action="replay-all">Replay all</button>
+    <label><input type="checkbox" data-action="rm"> Reduced motion</label>
+  </div>
+</header>
+<div class="grid">
+<article class="panel" data-motif="elevator">
+  <div class="panel-head"><h2><span>A</span>Elevator readout</h2></div>
+  <p class="panel-why">Reuses the site's own navigation language: you arrive at the street with the lift display already running.</p>
+  <div class="stage">
+    <img class="scene" src="/posters/hero.webp" alt="">
+    <nav class="floor-rail" aria-hidden="true"><ol><li><a aria-current="true"><span class="floor-number">ST</span><span class="floor-name">Street</span></a></li><li><a><span class="floor-number">↕</span><span class="floor-name">Stack</span></a></li><li><a><span class="floor-number">G</span><span class="floor-name">Frontend</span></a></li><li><a><span class="floor-number">1</span><span class="floor-name">Backend</span></a></li><li><a><span class="floor-number">2</span><span class="floor-name">Cloud</span></a></li><li><a><span class="floor-number">3</span><span class="floor-name">Data</span></a></li><li><a><span class="floor-number">4</span><span class="floor-name">AI products</span></a></li><li><a><span class="floor-number">5</span><span class="floor-name">AI coding</span></a></li><li><a><span class="floor-number">6</span><span class="floor-name">People</span></a></li><li><a><span class="floor-number">R</span><span class="floor-name">About</span></a></li><li><a><span class="floor-number">A</span><span class="floor-name">Say hi</span></a></li></ol></nav>
+    <div class="altimeter" aria-hidden="true"><span class="altimeter-value">2</span></div>
+  </div>
+  <div class="panel-controls">
+    <button type="button" data-action="replay">Replay</button>
+    <button type="button" data-action="skip">Skip path</button>
+    <button type="button" data-action="full" aria-pressed="false">Fullscreen</button>
+    <label><input type="checkbox" data-action="slow"> Slow</label>
+    <ol class="panel-stages"><li data-stage="script">script</li><li data-stage="textures">textures</li><li data-stage="compiled">compiled</li><li data-stage="ready">ready</li><li>plan: <span class="panel-plan">…</span></li></ol>
+  </div>
+  <ul class="panel-notes">
+    <li>Morph is the most legible of the four: the number lands exactly on the altimeter, the ticks slide into the rail.</li>
+    <li>Light DOM: one readout, ten ticks. Fine on mobile; the altimeter moves top-right there and the FLIP follows it.</li>
+    <li>Counting metres while nothing is 'moving' can read as fake progress if a stage stalls; the breathing tick covers that.</li>
+  </ul>
+</article>
+<article class="panel" data-motif="rain">
+  <div class="panel-head"><h2><span>B</span>Rain on the street</h2></div>
+  <p class="panel-why">It is the hero frame reduced to light and weather, so the handoff is nearly invisible.</p>
+  <div class="stage">
+    <img class="scene" src="/posters/hero.webp" alt="">
+    <nav class="floor-rail" aria-hidden="true"><ol><li><a aria-current="true"><span class="floor-number">ST</span><span class="floor-name">Street</span></a></li><li><a><span class="floor-number">↕</span><span class="floor-name">Stack</span></a></li><li><a><span class="floor-number">G</span><span class="floor-name">Frontend</span></a></li><li><a><span class="floor-number">1</span><span class="floor-name">Backend</span></a></li><li><a><span class="floor-number">2</span><span class="floor-name">Cloud</span></a></li><li><a><span class="floor-number">3</span><span class="floor-name">Data</span></a></li><li><a><span class="floor-number">4</span><span class="floor-name">AI products</span></a></li><li><a><span class="floor-number">5</span><span class="floor-name">AI coding</span></a></li><li><a><span class="floor-number">6</span><span class="floor-name">People</span></a></li><li><a><span class="floor-number">R</span><span class="floor-name">About</span></a></li><li><a><span class="floor-number">A</span><span class="floor-name">Say hi</span></a></li></ol></nav>
+    <div class="altimeter" aria-hidden="true"><span class="altimeter-value">2</span></div>
+  </div>
+  <div class="panel-controls">
+    <button type="button" data-action="replay">Replay</button>
+    <button type="button" data-action="skip">Skip path</button>
+    <button type="button" data-action="full" aria-pressed="false">Fullscreen</button>
+    <label><input type="checkbox" data-action="slow"> Slow</label>
+    <ol class="panel-stages"><li data-stage="script">script</li><li data-stage="textures">textures</li><li data-stage="compiled">compiled</li><li data-stage="ready">ready</li><li>plan: <span class="panel-plan">…</span></li></ol>
+  </div>
+  <ul class="panel-notes">
+    <li>Most atmospheric, least 'UI'. The warm door and its wet reflection give the eye one anchor.</li>
+    <li>Three animated gradient layers plus a blurred mirror: cheap on desktop, the blur is the one thing to drop on low-end phones.</li>
+    <li>The morph is subtle (only the floor tag travels); if you want a visible mechanism, pick A or C.</li>
+  </ul>
+</article>
+<article class="panel" data-motif="blueprint">
+  <div class="panel-head"><h2><span>C</span>Blueprint draws in</h2></div>
+  <p class="panel-why">Engineering flavour: ties to the blueprint textures on the cloud floor and the 'training ground' note under the hero copy.</p>
+  <div class="stage">
+    <img class="scene" src="/posters/hero.webp" alt="">
+    <nav class="floor-rail" aria-hidden="true"><ol><li><a aria-current="true"><span class="floor-number">ST</span><span class="floor-name">Street</span></a></li><li><a><span class="floor-number">↕</span><span class="floor-name">Stack</span></a></li><li><a><span class="floor-number">G</span><span class="floor-name">Frontend</span></a></li><li><a><span class="floor-number">1</span><span class="floor-name">Backend</span></a></li><li><a><span class="floor-number">2</span><span class="floor-name">Cloud</span></a></li><li><a><span class="floor-number">3</span><span class="floor-name">Data</span></a></li><li><a><span class="floor-number">4</span><span class="floor-name">AI products</span></a></li><li><a><span class="floor-number">5</span><span class="floor-name">AI coding</span></a></li><li><a><span class="floor-number">6</span><span class="floor-name">People</span></a></li><li><a><span class="floor-number">R</span><span class="floor-name">About</span></a></li><li><a><span class="floor-number">A</span><span class="floor-name">Say hi</span></a></li></ol></nav>
+    <div class="altimeter" aria-hidden="true"><span class="altimeter-value">2</span></div>
+  </div>
+  <div class="panel-controls">
+    <button type="button" data-action="replay">Replay</button>
+    <button type="button" data-action="skip">Skip path</button>
+    <button type="button" data-action="full" aria-pressed="false">Fullscreen</button>
+    <label><input type="checkbox" data-action="slow"> Slow</label>
+    <ol class="panel-stages"><li data-stage="script">script</li><li data-stage="textures">textures</li><li data-stage="compiled">compiled</li><li data-stage="ready">ready</li><li>plan: <span class="panel-plan">…</span></li></ol>
+  </div>
+  <ul class="panel-notes">
+    <li>Strokes draw per stage, then the floors light bottom-up on ready: progress is visible without a percentage.</li>
+    <li>Heaviest of the four (~30 SVG paths, a pen cursor on rAF); still trivial next to the three.js chunk it waits for.</li>
+    <li>The elevation overlays the real tower for a beat before dissolving; the match is approximate, not pixel-aligned.</li>
+  </ul>
+</article>
+<article class="panel" data-motif="beacon">
+  <div class="panel-head"><h2><span>D</span>Roof beacon pulse</h2></div>
+  <p class="panel-why">Minimal and cheap; the beacon is the last chapter's motif, so the site opens and closes on the same light.</p>
+  <div class="stage">
+    <img class="scene" src="/posters/hero.webp" alt="">
+    <nav class="floor-rail" aria-hidden="true"><ol><li><a aria-current="true"><span class="floor-number">ST</span><span class="floor-name">Street</span></a></li><li><a><span class="floor-number">↕</span><span class="floor-name">Stack</span></a></li><li><a><span class="floor-number">G</span><span class="floor-name">Frontend</span></a></li><li><a><span class="floor-number">1</span><span class="floor-name">Backend</span></a></li><li><a><span class="floor-number">2</span><span class="floor-name">Cloud</span></a></li><li><a><span class="floor-number">3</span><span class="floor-name">Data</span></a></li><li><a><span class="floor-number">4</span><span class="floor-name">AI products</span></a></li><li><a><span class="floor-number">5</span><span class="floor-name">AI coding</span></a></li><li><a><span class="floor-number">6</span><span class="floor-name">People</span></a></li><li><a><span class="floor-number">R</span><span class="floor-name">About</span></a></li><li><a><span class="floor-number">A</span><span class="floor-name">Say hi</span></a></li></ol></nav>
+    <div class="altimeter" aria-hidden="true"><span class="altimeter-value">2</span></div>
+  </div>
+  <div class="panel-controls">
+    <button type="button" data-action="replay">Replay</button>
+    <button type="button" data-action="skip">Skip path</button>
+    <button type="button" data-action="full" aria-pressed="false">Fullscreen</button>
+    <label><input type="checkbox" data-action="slow"> Slow</label>
+    <ol class="panel-stages"><li data-stage="script">script</li><li data-stage="textures">textures</li><li data-stage="compiled">compiled</li><li data-stage="ready">ready</li><li>plan: <span class="panel-plan">…</span></li></ol>
+  </div>
+  <ul class="panel-notes">
+    <li>Quietest option: one dot, one line, one scrambled status word. Almost no DOM, no layout cost.</li>
+    <li>Reads as a 'moment' only when the load is slow enough for two or three pulses; on fast loads it is nearly nothing.</li>
+    <li>Morph is a glide to the mast position, not a landing on existing UI.</li>
+  </ul>
+</article>
+</div>
+</body>
+</html>

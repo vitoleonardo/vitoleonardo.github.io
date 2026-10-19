@@ -37,6 +37,7 @@ export interface Stop {
 
 export interface UiStrings {
   skipLink: string
+  loaderLabel: string
   mainNavLabel: string
   languageLabel: string
   stackCount: string

@@ -15,5 +15,5 @@
     "useDefineForClassFields": true,
     "resolveJsonModule": true
   },
-  "include": ["src"]
+  "include": ["src", "docs/loaders"]
 }

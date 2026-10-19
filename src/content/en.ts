@@ -3,6 +3,7 @@ import type { Content } from './types'
 export const en: Content = {
   ui: {
     skipLink: 'Skip to content',
+    loaderLabel: 'Loading the tower',
     mainNavLabel: 'Main',
     languageLabel: 'Language',
     stackCount: 'Stack {n} of 7',

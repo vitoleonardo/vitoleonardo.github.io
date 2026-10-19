@@ -142,7 +142,13 @@ function buildFloorSets(context: FloorContext): FloorSet[] {
   return [atmosphere, tower, architecture, ...floors]
 }
 
-export async function initWorld(canvas: HTMLCanvasElement): Promise<WorldApi> {
+export type WorldStage = 'textures' | 'compiled' | 'ready'
+
+export interface WorldOptions {
+  onStage?: (stage: WorldStage) => void
+}
+
+export async function initWorld(canvas: HTMLCanvasElement, options: WorldOptions = {}): Promise<WorldApi> {
   const root = document.documentElement
   const initialTier = pickInitialTier({
     mobile: env.mobile,
@@ -158,6 +164,7 @@ export async function initWorld(canvas: HTMLCanvasElement): Promise<WorldApi> {
   let sets: FloorSet[]
   try {
     textures = await createSharedTextures(renderer)
+    options.onStage?.('textures')
     sets = buildFloorSets({ scene, renderer, camera, textures, quality })
   } catch (error) {
     renderer.dispose()
@@ -272,11 +279,13 @@ export async function initWorld(canvas: HTMLCanvasElement): Promise<WorldApi> {
 
   advance(0)
   await renderer.compileAsync(scene, camera)
+  options.onStage?.('compiled')
   if (!disposed && !contextLost) {
     post.warmUp()
     advance(0)
     post.render(frame.world.bloom)
     root.classList.add(READY_CLASS)
+    options.onStage?.('ready')
     startLoop()
   }
 

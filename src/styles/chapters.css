@@ -823,17 +823,17 @@ html:not(.js) .email-button {
     transition: opacity 0.7s var(--ease-out);
   }
 
-  .dom-ready:not(.rm, .no-webgl) .chapter.is-active .chapter-copy > :not([data-split]),
-  .dom-ready:not(.rm, .no-webgl) .chapter.is-active .word {
+  .dom-ready:not(.rm, .no-webgl, .loading) .chapter.is-active .chapter-copy > :not([data-split]),
+  .dom-ready:not(.rm, .no-webgl, .loading) .chapter.is-active .word {
     opacity: 1;
     transform: none;
   }
 
-  .dom-ready:not(.rm, .no-webgl) .chapter.is-active .chapter-copy::before {
+  .dom-ready:not(.rm, .no-webgl, .loading) .chapter.is-active .chapter-copy::before {
     opacity: 1;
   }
 
-  .dom-ready:not(.rm, .no-webgl) .chapter.is-active:not(.has-entered) .word {
+  .dom-ready:not(.rm, .no-webgl, .loading) .chapter.is-active:not(.has-entered) .word {
     transition-delay: calc(var(--word-index, 0) * var(--word-stagger, 60ms) + 120ms);
   }
 }

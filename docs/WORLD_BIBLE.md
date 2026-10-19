@@ -9,6 +9,7 @@ You climb a night-lit engineering tower in Cologne, one floor per skill, from th
 - Scroll position is the single driver. Everything else (hover, focus, press) is optional and never gates content.
 - Every 3D hotspot has a real DOM button with the same id, kept in sync both ways.
 - Reduced motion snaps to the exact chapter and freezes scene clocks.
+- The only wait is the loading curtain (`src/dom/loader.ts`): a blueprint of the tower draws itself while the world chunk, textures and shaders arrive, then dissolves over the real tower. It never plays when the world is ready within 250 ms, releases instantly under reduced motion or without WebGL, and gives up after 12 s so the page is never stuck.
 
 ## Visual bible
 

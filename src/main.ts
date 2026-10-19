@@ -6,6 +6,7 @@ import './styles/base.css'
 import './styles/chapters.css'
 import './styles/cursor.css'
 import './styles/scramble.css'
+import './styles/loader.css'
 import { conductorSource, createChapterFeed, viewportSource } from './dom/chapter-source'
 import { initCursor } from './dom/cursor'
 import { initEmailButton } from './dom/email-button'
@@ -14,6 +15,8 @@ import { initReveal } from './dom/reveal'
 import { initScramble } from './dom/scramble'
 import { env } from './env'
 import { initI18n } from './i18n'
+import { initLoader } from './dom/loader'
+import { createBlueprintMotif } from './dom/loader-blueprint'
 import type { WorldApi } from './world'
 import { initInteractions } from './world/interactions'
 
@@ -22,6 +25,7 @@ initI18n()
 const root = document.documentElement
 const sections = Array.from(document.querySelectorAll<HTMLElement>('main .chapter'))
 const feed = createChapterFeed()
+const loader = initLoader({ motif: createBlueprintMotif(), reducedMotion: () => env.reducedMotion, webgl: env.webgl })
 
 initReveal({ sections, chapters: feed, splitWords: env.webgl && !env.reducedMotion })
 const rail = initRail(
@@ -37,7 +41,8 @@ root.classList.add('dom-ready')
 
 async function loadWorld(canvas: HTMLCanvasElement): Promise<WorldApi> {
   const { initWorld } = await import('./world')
-  return initWorld(canvas)
+  loader.setStage('script')
+  return initWorld(canvas, { onStage: (stage) => loader.setStage(stage) })
 }
 
 async function startWorld(): Promise<void> {
@@ -48,6 +53,7 @@ async function startWorld(): Promise<void> {
     world = await loadWorld(canvas)
   } catch {
     root.classList.add('no-webgl')
+    loader.fail()
     return
   }
   const { createPicker } = await import('./world/picker')
@@ -60,6 +66,7 @@ async function startWorld(): Promise<void> {
     pick: createPicker(world.camera, canvas),
     scrollToChapter: (index) => world.conductor.scrollToChapter(index),
   })
+  void loader.finish()
 }
 
 if (env.webgl) void startWorld()
