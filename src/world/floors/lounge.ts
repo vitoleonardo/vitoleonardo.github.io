@@ -38,6 +38,7 @@ import {
   withSurfaceBreakup,
 } from './kit'
 import { breathe, createAreaEmitter, createSceneClock, litByArea, paintedSteelMaterial, withinChapters } from './kit-upper'
+import { disposeFisherman, loadFisherman, type Fisherman } from './fisherman'
 
 const serviceCount = 10
 const deckTop = 0.12
@@ -82,6 +83,7 @@ const rackFace = 0.262
 const crate = { x: 0.72, z: -4.05, yaw: 0.22, size: 0.37, height: 0.31 } as const
 const sofa = { x: 4.75, z: 0.9, width: 2.3, depth: 0.86 } as const
 const floorLamp = { x: 6.32, z: 2.75, shadeY: 1.5, shadeRadius: 0.24, shadeHeight: 0.3 } as const
+const fishermanSpot = { x: 2.9, z: 0.3, yawBackToCamera: 0.1 } as const
 const holeHalf = 1.8
 const railHeight = 1.05
 
@@ -545,7 +547,7 @@ function luminanceOf(color: Color): number {
 }
 
 export const createLoungeFloor: FloorFactory = (context) => {
-  const { textures } = context
+  const { textures, renderer, camera, scene } = context
   const root = new Group()
   root.name = 'lounge'
   root.position.y = floorBase.lounge
@@ -667,6 +669,27 @@ export const createLoungeFloor: FloorFactory = (context) => {
 
   root.add(wood, steel, aluminium, gear, fabric, warmLights, diffuser, wallHalo, equaliserStrip, glows, leds, ...proxies.map((proxy) => proxy.object))
 
+  let disposed = false
+  let fisherman: Fisherman | null = null
+  const fishermanStand = new Group()
+  fishermanStand.position.set(fishermanSpot.x, deckTop, fishermanSpot.z)
+  fishermanStand.rotation.y = fishermanSpot.yawBackToCamera
+  root.add(fishermanStand)
+  void loadFisherman()
+    .then(async (mesh) => {
+      mesh.castShadow = true
+      mesh.receiveShadow = true
+      litByArea(mesh.material, areaEmitter)
+      await renderer.compileAsync(mesh, camera, scene)
+      if (disposed) {
+        disposeFisherman(mesh)
+        return
+      }
+      fisherman = mesh
+      fishermanStand.add(mesh)
+    })
+    .catch(() => undefined)
+
   const closeDetails = [aluminium, warmLights, equaliserStrip, glows, leds]
   const clock = createSceneClock()
   let power = 0
@@ -707,6 +730,11 @@ export const createLoungeFloor: FloorFactory = (context) => {
   }
 
   function dispose(): void {
+    disposed = true
+    if (fisherman) {
+      fisherman.removeFromParent()
+      disposeFisherman(fisherman)
+    }
     disposeTree(root)
     glow.dispose()
   }
