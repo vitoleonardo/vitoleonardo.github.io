@@ -8,6 +8,7 @@ export interface LookSwitch {
 export function initLookSwitch(): LookSwitch {
   const root = document.documentElement
   const button = document.querySelector<HTMLButtonElement>('.look-switch')
+  const favicon = document.querySelector<HTMLLinkElement>('link[rel="icon"]')
   const listeners = new Set<(look: Look) => void>()
   let current = readLook()
 
@@ -15,6 +16,7 @@ export function initLookSwitch(): LookSwitch {
     current = look
     root.dataset.look = look
     button?.setAttribute('aria-pressed', String(look === 'vice'))
+    favicon?.setAttribute('href', look === 'vice' ? '/favicon-vice.svg' : '/favicon.svg')
   }
 
   apply(current)
