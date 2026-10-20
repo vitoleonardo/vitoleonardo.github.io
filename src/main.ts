@@ -11,6 +11,7 @@ import { conductorSource, createChapterFeed, viewportSource } from './dom/chapte
 import { initCursor } from './dom/cursor'
 import { initEmailButton } from './dom/email-button'
 import { initGlyphStream } from './dom/glyph-stream'
+import { initLookSwitch } from './dom/look-switch'
 import { initRail } from './dom/rail'
 import { initReveal } from './dom/reveal'
 import { initScramble } from './dom/scramble'
@@ -22,6 +23,7 @@ import type { WorldApi } from './world'
 import { initInteractions } from './world/interactions'
 
 initI18n()
+const lookSwitch = initLookSwitch()
 
 const root = document.documentElement
 const sections = Array.from(document.querySelectorAll<HTMLElement>('main .chapter'))
@@ -44,7 +46,7 @@ root.classList.add('dom-ready')
 async function loadWorld(canvas: HTMLCanvasElement): Promise<WorldApi> {
   const { initWorld } = await import('./world')
   loader.setStage('script')
-  return initWorld(canvas, { onStage: (stage) => loader.setStage(stage) })
+  return initWorld(canvas, { onStage: (stage) => loader.setStage(stage), look: lookSwitch.look() })
 }
 
 async function startWorld(): Promise<void> {
@@ -60,6 +62,7 @@ async function startWorld(): Promise<void> {
   }
   const { createPicker } = await import('./world/picker')
   feed.connect(conductorSource(world.conductor))
+  lookSwitch.onChange((look) => world.setLook(look))
   rail.followCamera({ camera: world.camera, onFrame: (listener) => world.onFrame(listener) })
   interactions.attachWorld({
     proxies: world.proxies,

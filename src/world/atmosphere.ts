@@ -28,7 +28,7 @@ import {
   type WebGLRenderTarget,
 } from 'three'
 import { block, blockBetween, composeMatrix, createRandom, instances, merge, place } from './geometry'
-import { breathing, clamp01, disposeTree, lightLaneCount, lightLedger, lightWeight, palette, smoothstep, type LedgerLight, type LightLevel } from './floors/kit'
+import { breathing, clamp01, disposeTree, fillColor, lightLaneCount, lightLedger, lightWeight, palette, smoothstep, type LedgerLight, type LightLevel } from './floors/kit'
 import type { FloorContext, FloorSet, FrameState } from './types'
 
 const fogDensityRange = [0.004, 0.03] as const
@@ -44,6 +44,14 @@ const hemisphereStrength = 1.5
 const environmentStrength = 0.85
 const skyTint = '#566797'
 const groundBounce = '#1D1B1E'
+const viceSkyTint = '#7A4AB0'
+const viceKey = '#C58BFF'
+const viceStreet = new Color('#FF4FA3')
+const viceFill = new Color('#4FE3FF')
+const viceRain = ['#FF7AC8', '#6FF3FF'] as const
+const classicRain = '#A9B8D6'
+const viceWindows = ['#FF4FA3', '#4FE3FF', '#FFB25E', '#B98CFF'] as const
+const viceEnvironmentSwap = 0.5
 
 interface SkyStop {
   at: number
@@ -63,6 +71,12 @@ const skyStops: readonly SkyStop[] = [
   { at: 1, zenith: '#33589C', sky: '#7397C8', low: '#BAC6D6', horizon: '#EBC7A4', glow: '#B88250', cityGlow: '#000000', fog: '#56627C', haze: '#646C80' },
 ]
 
+const viceSkyStops: readonly SkyStop[] = [
+  { at: 0, zenith: '#0A0320', sky: '#1C0A3E', low: '#45145E', horizon: '#7E2470', glow: '#B82A6E', cityGlow: '#5A1A58', fog: '#26103A', haze: '#5E2668' },
+  { at: 0.45, zenith: '#120838', sky: '#36186A', low: '#8E3488', horizon: '#F0707A', glow: '#FF5E52', cityGlow: '#3A1240', fog: '#36184C', haze: '#74357A' },
+  { at: 1, zenith: '#3346A0', sky: '#9474CE', low: '#FF9CC0', horizon: '#FFC07A', glow: '#FF8A50', cityGlow: '#000000', fog: '#76547F', haze: '#9E6C8E' },
+]
+
 type SkyColors = Record<Exclude<keyof SkyStop, 'at'>, Color>
 
 const skyColorKeys = ['zenith', 'sky', 'low', 'horizon', 'glow', 'cityGlow', 'fog', 'haze'] as const
@@ -72,13 +86,23 @@ function skyColorsOf(stop: SkyStop): SkyColors {
 }
 
 const skyStopColors = skyStops.map(skyColorsOf)
+const viceSkyStopColors = viceSkyStops.map(skyColorsOf)
+const viceScratch = skyColorsOf(viceSkyStops[0])
 
-function sampleSky(dawn: number, target: SkyColors): SkyColors {
+function sampleStops(stops: readonly SkyStop[], colors: readonly SkyColors[], dawn: number, target: SkyColors): SkyColors {
   const level = clamp01(dawn)
-  const upper = Math.max(1, skyStops.findIndex((stop) => stop.at >= level))
+  const upper = Math.max(1, stops.findIndex((stop) => stop.at >= level))
   const lower = upper - 1
-  const blend = smoothstep(skyStops[lower].at, skyStops[upper].at, level)
-  for (const key of skyColorKeys) target[key].copy(skyStopColors[lower][key]).lerp(skyStopColors[upper][key], blend)
+  const blend = smoothstep(stops[lower].at, stops[upper].at, level)
+  for (const key of skyColorKeys) target[key].copy(colors[lower][key]).lerp(colors[upper][key], blend)
+  return target
+}
+
+export function sampleSky(dawn: number, vice: number, target: SkyColors): SkyColors {
+  sampleStops(skyStops, skyStopColors, dawn, target)
+  if (vice <= 0) return target
+  sampleStops(viceSkyStops, viceSkyStopColors, dawn, viceScratch)
+  for (const key of skyColorKeys) target[key].lerp(viceScratch[key], vice)
   return target
 }
 
@@ -101,7 +125,23 @@ uniform vec3 uCityGlow;
 uniform vec3 uRed;
 uniform vec3 uSunDirection;
 uniform float uRedAmount;
+uniform float uVice;
+uniform float uSunLift;
+uniform float uSunStrength;
 varying vec3 vDirection;
+vec3 synthSun(vec3 direction, vec3 sun) {
+  vec3 centre = normalize(vec3(sun.x, uSunLift, sun.z));
+  float radius = 0.16;
+  float reach = acos(clamp(dot(direction, centre), -1.0, 1.0));
+  float rise = (direction.y - centre.y) / radius;
+  float disc = 1.0 - smoothstep(radius - 0.004, radius, reach);
+  float band = fract(rise * 7.0);
+  float gap = clamp(-rise * 0.55 + 0.08, 0.0, 0.5);
+  float stripes = rise < 0.15 ? smoothstep(gap - 0.02, gap, band) : 1.0;
+  vec3 face = mix(vec3(1.0, 0.18, 0.55), vec3(1.0, 0.86, 0.32), smoothstep(-1.0, 0.9, rise));
+  float halo = exp(-max(reach - radius, 0.0) * 14.0) * 0.22;
+  return (face * disc * stripes * 1.1 + vec3(1.0, 0.3, 0.55) * halo) * uSunStrength;
+}
 void main() {
   vec3 direction = normalize(vDirection);
   float height = direction.y;
@@ -115,6 +155,7 @@ void main() {
   color += uGlow * 0.35 * pow(max(dot(direction, sun), 0.0), 60.0);
   color += uCityGlow * exp(-above * 12.0);
   color = mix(color, color * 0.55 + uRed * 0.3 * exp(-above * 5.0), uRedAmount);
+  color += synthSun(direction, sun) * uVice;
   color = mix(color, uHorizon * 0.55, smoothstep(0.0, -0.12, height));
   gl_FragColor = vec4(color, 1.0);
   #include <tonemapping_fragment>
@@ -130,6 +171,7 @@ uniform float uLength;
 attribute float aTail;
 attribute float aSpeed;
 varying float vFade;
+varying float vTint;
 float sheltered(vec3 point) {
   float tower = step(abs(point.x), 7.6) * step(abs(point.z), 7.6) * step(point.y, 31.5);
   float deck = step(7.0, point.x) * step(point.x, 15.3) * step(abs(point.z), 4.3) * step(point.y, 20.1);
@@ -141,6 +183,7 @@ void main() {
   vec3 head = origin + mod(position * uBox + fall - origin, uBox);
   vec3 streak = normalize(vec3(-uWind.x, 1.0, -uWind.z)) * uLength * aTail;
   float distanceFade = 1.0 - smoothstep(6.0, uBox.x * 0.5, distance(head, cameraPosition));
+  vTint = step(11.0, aSpeed);
   vFade = (1.0 - sheltered(head)) * distanceFade * (1.0 - aTail * 0.9);
   gl_Position = projectionMatrix * viewMatrix * vec4(head + streak, 1.0);
 }
@@ -148,10 +191,12 @@ void main() {
 
 const rainFragmentShader = `
 uniform vec3 uColor;
+uniform vec3 uColorAlt;
 uniform float uOpacity;
 varying float vFade;
+varying float vTint;
 void main() {
-  gl_FragColor = vec4(uColor, vFade * uOpacity);
+  gl_FragColor = vec4(mix(uColor, uColorAlt, vTint), vFade * uOpacity);
   #include <colorspace_fragment>
 }
 `
@@ -202,6 +247,9 @@ function createSkyMaterial(colors: SkyColors): ShaderMaterial {
       uRed: { value: new Color(palette.fusion) },
       uSunDirection: { value: [0.42, 0.05, -0.9] },
       uRedAmount: { value: 0 },
+      uVice: { value: 0 },
+      uSunLift: { value: 0 },
+      uSunStrength: { value: 1 },
     },
     vertexShader: skyVertexShader,
     fragmentShader: skyFragmentShader,
@@ -210,11 +258,16 @@ function createSkyMaterial(colors: SkyColors): ShaderMaterial {
   })
 }
 
-function createEnvironmentMap(context: FloorContext, skyMaterial: ShaderMaterial): WebGLRenderTarget {
+interface EnvironmentPanels {
+  warm: string
+  cool: string
+}
+
+function createEnvironmentMap(context: FloorContext, skyMaterial: ShaderMaterial, panelColors: EnvironmentPanels): WebGLRenderTarget {
   const environmentScene = new Scene()
   const sky = new Mesh(new SphereGeometry(skyRadius, 32, 16), skyMaterial)
-  const warm = new MeshBasicMaterial({ color: new Color(palette.warm).multiplyScalar(3) })
-  const cool = new MeshBasicMaterial({ color: new Color('#8ea4ff').multiplyScalar(0.8) })
+  const warm = new MeshBasicMaterial({ color: new Color(panelColors.warm).multiplyScalar(3) })
+  const cool = new MeshBasicMaterial({ color: new Color(panelColors.cool).multiplyScalar(0.8) })
   const panels = [
     new Mesh(new BoxGeometry(4, 3, 0.2), warm),
     new Mesh(new BoxGeometry(1, 0.2, 1), warm),
@@ -231,11 +284,13 @@ function createEnvironmentMap(context: FloorContext, skyMaterial: ShaderMaterial
   return target
 }
 
-function skylineLayout(): { blocks: Matrix4[]; windows: Matrix4[]; windowColors: Color[] } {
+function skylineLayout(): { blocks: Matrix4[]; windows: Matrix4[]; windowColors: Color[]; viceWindowColors: Color[] } {
   const random = createRandom(4711)
+  const viceRandom = createRandom(1986)
   const blocks: Matrix4[] = []
   const windows: Matrix4[] = []
   const windowColors: Color[] = []
+  const viceWindowColors: Color[] = []
   const warm = new Color(palette.warm)
   const cool = new Color('#9db3ff')
   const rows = [
@@ -259,6 +314,7 @@ function skylineLayout(): { blocks: Matrix4[]; windows: Matrix4[]; windowColors:
           const floor = Math.floor(random() * Math.max(1, height / 3.2 - 1))
           windows.push(composeMatrix([x + 1.6 + column * 2.4, 2.4 + floor * 3.2, z + depth / 2 + 0.05], [0, 0, 0], [1.1, 1.4, 1]))
           windowColors.push(random() < 0.78 ? warm.clone().multiplyScalar(0.6 + random() * 0.8) : cool.clone().multiplyScalar(0.5))
+          viceWindowColors.push(new Color(viceWindows[Math.floor(viceRandom() * viceWindows.length)]).multiplyScalar(0.7 + viceRandom() * 0.9))
         }
       }
       x += width + row.gap[0] + random() * (row.gap[1] - row.gap[0])
@@ -268,7 +324,8 @@ function skylineLayout(): { blocks: Matrix4[]; windows: Matrix4[]; windowColors:
   windowColors.push(new Color(palette.fusion).multiplyScalar(2.2))
   windows.push(composeMatrix([52, 64.5, -121], [0, 0, 0], [0.6, 0.6, 1]))
   windowColors.push(new Color(palette.fusion).multiplyScalar(1.6))
-  return { blocks, windows, windowColors }
+  viceWindowColors.push(new Color(viceWindows[0]).multiplyScalar(2.2), new Color(viceWindows[1]).multiplyScalar(1.6))
+  return { blocks, windows, windowColors, viceWindowColors }
 }
 
 function cathedralGeometry(): BufferGeometry[] {
@@ -313,7 +370,7 @@ function craneHouseGeometry(): BufferGeometry[] {
   return pieces
 }
 
-function createRain(count: number): { lines: LineSegments; material: ShaderMaterial } {
+function createRain(count: number): { lines: LineSegments; material: ShaderMaterial; color: Color; colorAlt: Color } {
   const random = createRandom(9001)
   const positions = new Float32Array(count * 6)
   const tails = new Float32Array(count * 2)
@@ -332,13 +389,16 @@ function createRain(count: number): { lines: LineSegments; material: ShaderMater
   geometry.setAttribute('position', new Float32BufferAttribute(positions, 3))
   geometry.setAttribute('aTail', new Float32BufferAttribute(tails, 1))
   geometry.setAttribute('aSpeed', new Float32BufferAttribute(speeds, 1))
+  const color = new Color(classicRain)
+  const colorAlt = new Color(classicRain)
   const material = new ShaderMaterial({
     uniforms: {
       uTime: { value: 0 },
       uBox: { value: [...rainBox] },
       uWind: { value: [0.12, 0, 0.05] },
       uLength: { value: 0.55 },
-      uColor: { value: new Color('#A9B8D6') },
+      uColor: { value: color },
+      uColorAlt: { value: colorAlt },
       uOpacity: { value: 0 },
     },
     vertexShader: rainVertexShader,
@@ -349,7 +409,7 @@ function createRain(count: number): { lines: LineSegments; material: ShaderMater
   const lines = new LineSegments(geometry, material)
   lines.frustumCulled = false
   lines.renderOrder = 2
-  return { lines, material }
+  return { lines, material, color, colorAlt }
 }
 
 function createDust(count: number): { points: Points; material: ShaderMaterial } {
@@ -397,7 +457,10 @@ export function createAtmosphere(context: FloorContext): FloorSet & { fog: FogEx
   sky.renderOrder = -10
 
   const previousEnvironment = scene.environment
-  const environment = createEnvironmentMap(context, skyMaterial.clone())
+  const environment = createEnvironmentMap(context, skyMaterial.clone(), { warm: palette.warm, cool: '#8ea4ff' })
+  const viceSkyMaterial = createSkyMaterial(skyColorsOf(viceSkyStops[0]))
+  viceSkyMaterial.uniforms.uVice.value = 1
+  const viceEnvironment = createEnvironmentMap(context, viceSkyMaterial, { warm: viceWindows[0], cool: viceWindows[1] })
   scene.environment = environment.texture
 
   const ground = new Mesh(
@@ -422,7 +485,14 @@ export function createAtmosphere(context: FloorContext): FloorSet & { fog: FogEx
   const rain = createRain(rainCapacity)
   const dust = createDust(dustCapacity)
 
+  const windowBlend = new Color()
+  let windowsVice = 0
+
+  const classicRainColor = new Color(classicRain)
+  const viceRainColors = viceRain.map((value) => new Color(value))
+
   const moonColor = new Color('#A9BCFF')
+  const viceKeyColor = new Color(viceKey)
   const dawnColor = new Color(palette.dawn)
   const redColor = new Color(palette.fusion)
   const key = new DirectionalLight(moonColor, 1.6)
@@ -441,6 +511,7 @@ export function createAtmosphere(context: FloorContext): FloorSet & { fog: FogEx
   key.shadow.normalBias = 0.03
 
   const skyColor = new Color(skyTint)
+  const viceSkyColor = new Color(viceSkyTint)
   const hemisphere = new HemisphereLight(skyColor, groundBounce, hemisphereStrength)
 
   const lanes = Array.from({ length: lightLaneCount }, (_, lane) => ({
@@ -457,16 +528,21 @@ export function createAtmosphere(context: FloorContext): FloorSet & { fog: FogEx
   let frozenTime = 0
 
   function update(frame: FrameState): void {
-    const { world, reducedMotion } = frame
+    const { world, reducedMotion, vice } = frame
     const time = reducedMotion ? frozenTime : frame.time % timeWrap
     frozenTime = time
 
     fog.density = fogDensityRange[0] + world.fog * (fogDensityRange[1] - fogDensityRange[0])
-    sampleSky(world.dawn, skyState)
+    sampleSky(world.dawn, vice, skyState)
     fog.color.copy(skyState.fog).lerp(fogRed, world.red * 0.3)
 
     sky.position.copy(camera.getWorldPosition(cameraPosition))
     skyMaterial.uniforms.uRedAmount.value = world.red
+    skyMaterial.uniforms.uVice.value = vice
+    skyMaterial.uniforms.uSunLift.value = -0.07 + smoothstep(0, 1, world.dawn) * 0.16
+    skyMaterial.uniforms.uSunStrength.value = 1 - smoothstep(0.4, 1, world.dawn) * 0.6
+    const environmentTexture = vice > viceEnvironmentSwap ? viceEnvironment.texture : environment.texture
+    if (scene.environment !== environmentTexture) scene.environment = environmentTexture
 
     const haze = 0.08 + world.fog * 0.3 + world.dawn * 0.15
     silhouetteMaterial.color.copy(silhouetteBase).lerp(skyState.haze, haze)
@@ -474,11 +550,18 @@ export function createAtmosphere(context: FloorContext): FloorSet & { fog: FogEx
     windowMaterial.color.setScalar((1 - world.fog * 0.55) * (1 - world.dawn * 0.7))
     windowMaterial.opacity = 1 - smoothstep(0.55, 0.9, world.dawn)
     skylineWindows.visible = windowMaterial.opacity > 0.01
+    if (windowsVice !== vice) {
+      windowsVice = vice
+      layout.windowColors.forEach((color, index) => skylineWindows.setColorAt(index, windowBlend.copy(color).lerp(layout.viceWindowColors[index], vice)))
+      if (skylineWindows.instanceColor) skylineWindows.instanceColor.needsUpdate = true
+    }
 
     const rainActive = world.rain > 0.01
     rain.lines.visible = rainActive
     rain.material.uniforms.uTime.value = time
-    rain.material.uniforms.uOpacity.value = world.rain * 0.5
+    rain.color.copy(classicRainColor).lerp(viceRainColors[0], vice)
+    rain.colorAlt.copy(classicRainColor).lerp(viceRainColors[1], vice)
+    rain.material.uniforms.uOpacity.value = world.rain * (0.5 + vice * 0.2)
     rain.lines.geometry.setDrawRange(0, Math.round(rainCapacity * quality.particles) * 2)
 
     dust.material.uniforms.uTime.value = time
@@ -487,10 +570,10 @@ export function createAtmosphere(context: FloorContext): FloorSet & { fog: FogEx
     dust.points.geometry.setDrawRange(0, Math.round(dustCapacity * quality.particles))
 
     key.intensity = keyStrength * world.key
-    key.color.copy(moonColor).lerp(dawnColor, afterBlueHour(world.dawn) * 0.7).lerp(redColor, world.red * 0.25)
+    key.color.copy(moonColor).lerp(viceKeyColor, vice * (1 - afterBlueHour(world.dawn) * 0.6)).lerp(dawnColor, afterBlueHour(world.dawn) * 0.7).lerp(redColor, world.red * 0.25)
     key.castShadow = quality.shadows > 0 && !frame.mobile
     hemisphere.intensity = hemisphereStrength * world.ambient
-    hemisphere.color.copy(skyColor).lerp(dawnColor, afterBlueHour(world.dawn) * 0.5)
+    hemisphere.color.copy(skyColor).lerp(viceSkyColor, vice).lerp(dawnColor, afterBlueHour(world.dawn) * 0.5)
     scene.environmentIntensity = environmentStrength * world.ambient + world.dawn * 0.2
 
     levels.practical = 0.25 + 0.75 * world.practicals
@@ -512,6 +595,8 @@ export function createAtmosphere(context: FloorContext): FloorSet & { fog: FogEx
       }
       lane.light.position.set(...active.position)
       lane.light.color.set(active.color)
+      if (active.level === 'street') lane.light.color.lerp(viceStreet, vice)
+      else if (active.color === fillColor) lane.light.color.lerp(viceFill, vice * 0.7)
       lane.light.distance = active.distance
       const breath = reducedMotion ? 1 : breathing(active.breath, frame.time)
       lane.light.intensity = active.intensity * weight * levels[active.level] * breath
@@ -521,7 +606,8 @@ export function createAtmosphere(context: FloorContext): FloorSet & { fog: FogEx
   function dispose(): void {
     disposeTree(root)
     environment.dispose()
-    if (scene.environment === environment.texture) scene.environment = previousEnvironment
+    viceEnvironment.dispose()
+    if (scene.environment === environment.texture || scene.environment === viceEnvironment.texture) scene.environment = previousEnvironment
   }
 
   return { id: 'street', root, proxies: [], update, dispose, fog }

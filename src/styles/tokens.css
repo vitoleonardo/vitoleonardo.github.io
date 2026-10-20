@@ -56,3 +56,12 @@
     --service-tag-height: 2.125rem;
   }
 }
+
+:root[data-look='vice'] {
+  --warm: #ff4fa3;
+  --signal: #22e6ff;
+  --signal-light: #8ff3ff;
+  --fusion: #ff2e9a;
+  --fusion-light: #ff7ac8;
+  --dawn: #ffc07a;
+}

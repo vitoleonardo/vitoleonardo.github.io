@@ -6,6 +6,7 @@ import {
   Float32BufferAttribute,
   Group,
   InstancedBufferAttribute,
+  type InstancedMesh,
   Matrix4,
   Mesh,
   MeshStandardMaterial,
@@ -58,6 +59,13 @@ const swayAmplitude = { across: 0.16, along: 0.11 } as const
 const flutterAmplitude = 0.035
 const gustSpeed = 0.6
 const scatteredFill = 0.12
+const boulevardRows = [
+  { z: 9.6, scale: 3, xs: [-35, -24, -12, 15.5, 24, 35] },
+  { z: -44.5, scale: 4.2, xs: [-64, -55, -46, -37, -28, -19, -10, -1, 8, 17, 26, 35, 44, 53, 62] },
+] as const
+const boulevardSeed = 77
+const viceFoliage = new Color('#B4FFE6')
+const growThreshold = 0.001
 
 interface LeafProfile {
   length: number
@@ -343,7 +351,7 @@ function foliageMaterial(wind: { value: number }): MeshStandardMaterial {
   return material
 }
 
-function instancedFoliage(kind: PlantKind, geometry: BufferGeometry, placements: readonly Placement[], material: MeshStandardMaterial): Mesh {
+function instancedFoliage(kind: PlantKind, geometry: BufferGeometry, placements: readonly Placement[], material: MeshStandardMaterial): InstancedMesh {
   geometry.setAttribute('aPhase', new InstancedBufferAttribute(new Float32Array(placements.map(placementPhase)), 1))
   const mesh = instances(geometry, material, placements.map(placementMatrix), placements.map(({ tint }) => tint))
   mesh.name = `foliage-${kind}`
@@ -369,6 +377,24 @@ function bakedFoliage(geometries: Record<PlantKind, BufferGeometry>, plan: Plant
   return mesh
 }
 
+export function boulevardPlan(seed: number): Placement[] {
+  const random = createRandom(seed)
+  return boulevardRows.flatMap((row) =>
+    row.xs.map((x): Placement => ({
+      position: [x + between(random, -0.8, 0.8), 0, row.z + between(random, -0.6, 0.6)],
+      yaw: random() * Math.PI * 2,
+      scale: row.scale * between(random, 0.85, 1.15),
+      tint: foliageTint(random),
+    })),
+  )
+}
+
+function growBoulevard(mesh: InstancedMesh, plan: readonly Placement[], grow: number): void {
+  plan.forEach((placement, index) => mesh.setMatrixAt(index, placementMatrix({ ...placement, scale: placement.scale * grow })))
+  mesh.instanceMatrix.needsUpdate = true
+  mesh.visible = grow > growThreshold
+}
+
 export interface Greenery {
   root: Group
   update(frame: FrameState): void
@@ -382,6 +408,14 @@ export function createGreenery(mobile: boolean): Greenery {
   const material = foliageMaterial(wind)
   const plan = plantingPlan(greenerySeed, mobile ? mobileDensity : desktopDensity)
   const geometries = plantGeometries(greenerySeed)
+  const avenue = boulevardPlan(boulevardSeed)
+  const boulevard = instancedFoliage('palm', palm(createRandom(boulevardSeed)), avenue, material)
+  boulevard.name = 'boulevard-palms'
+  boulevard.castShadow = true
+  boulevard.frustumCulled = false
+  let grown = 0
+  growBoulevard(boulevard, avenue, grown)
+  root.add(boulevard)
   if (mobile) {
     const baked = bakedFoliage(geometries, plan, material)
     baked.receiveShadow = true
@@ -398,6 +432,10 @@ export function createGreenery(mobile: boolean): Greenery {
     root,
     update(frame) {
       wind.value = clock(frame)
+      if (frame.vice === grown) return
+      grown = frame.vice
+      growBoulevard(boulevard, avenue, grown)
+      material.color.set('#ffffff').lerp(viceFoliage, grown)
     },
   }
 }

@@ -6,7 +6,7 @@ const { de } = await import(`${projectRoot}src/content/de.ts`)
 
 const SITE_URL = 'https://vitoleonardo.github.io'
 const NON_COPY_KEYS = new Set(['href', 'id', 'figure', 'lang', 'number'])
-const KEEP_AS_IS = new Set(['EN', 'DE', 'Vito', 'Krawutschke', 'Vito Krawutschke'])
+const KEEP_AS_IS = new Set(['EN', 'DE', 'Vito', 'Krawutschke', 'Vito Krawutschke', 'Vice'])
 const KNOWN_UNTRANSLATED = new Set(['Dr. Fakhari'])
 const EN_CURRENT_SWITCH =
   /<a class="is-current" href="\/" hreflang="en" lang="en" aria-current="true"((?: tabindex="-1")?)>EN<\/a><a href="\/de\/" hreflang="de" lang="de"((?: tabindex="-1")?)>DE<\/a>/g

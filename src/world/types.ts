@@ -82,6 +82,7 @@ export interface FrameState {
   dt: number
   reducedMotion: boolean
   mobile: boolean
+  vice: number
 }
 
 export type InteractionState = 'unavailable' | 'idle' | 'hover' | 'focused' | 'active'

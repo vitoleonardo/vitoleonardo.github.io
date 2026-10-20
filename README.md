@@ -42,7 +42,8 @@ flowchart TD
 - **`src/world/architecture/`** is the exterior: concrete fins and planted terraces, wind-swayed greenery, window spill, contact shadows and height fog, with LED edge lines that follow the floor-light cascade.
 - **`src/world/floors/`** holds one factory per floor (frontend, backend, cloud, data, ai-core, rocket, teaching, lounge, beacon), built on the shared kit (materials, light ledger, emitters). `tower.ts` builds street, facade, slabs and stair core, `atmosphere.ts` sky, skyline, rain, dust and fog.
 - **`src/world/interactions.ts`** keeps 3D proxies and DOM buttons in sync in both directions.
-- **`src/world/post.ts`** runs a plain render until the bloom channel is above zero, then switches to the bloom chain.
+- **`src/world/post.ts`** runs a plain render until the bloom channel is above zero or the Vice look is on, then switches to the bloom chain with a Vice grade pass.
+- **`src/world/look.ts`** holds the scene look. The header switch toggles between Classic (rainy Cologne night) and Vice (neon night to a Miami sunrise), persisted in `localStorage`. The world eases one `vice` blend from 0 to 1 and every set mixes its Classic and Vice values with it: sky table and synthwave sun, rain tint, neon trims, boulevard palms, lamp colours and the post grade. Nothing is rebuilt on a switch.
 
 The full specification is in [docs/WORLD_BIBLE.md](docs/WORLD_BIBLE.md).
 

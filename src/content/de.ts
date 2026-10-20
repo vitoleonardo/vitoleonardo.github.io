@@ -6,6 +6,7 @@ export const de: Content = {
     loaderLabel: 'Der Turm wird geladen',
     mainNavLabel: 'Hauptnavigation',
     languageLabel: 'Sprache',
+    lookLabel: 'Vice-City-Look',
     stackCount: 'Stack {n} von 7',
     contactHeading: 'Kontakt',
     contactLegalLabel: 'Kontakt und Rechtliches',

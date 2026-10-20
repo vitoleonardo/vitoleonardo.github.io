@@ -40,6 +40,7 @@ export interface UiStrings {
   loaderLabel: string
   mainNavLabel: string
   languageLabel: string
+  lookLabel: string
   stackCount: string
   contactHeading: string
   contactLegalLabel: string

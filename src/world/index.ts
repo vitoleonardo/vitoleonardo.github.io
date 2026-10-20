@@ -20,6 +20,7 @@ import { type Conductor, createConductor } from './conductor'
 import { floorFactories } from './floors'
 import { createChannels, interpolateChannels, presentedState, segmentState } from './interp'
 import { createPost } from './post'
+import { easeLook, type Look, lookTarget, stepLook } from './look'
 import { createQualityGovernor, pickInitialTier, qualityTiers } from './quality'
 import { createSharedTextures } from './textures'
 import { createTower } from './tower'
@@ -49,6 +50,7 @@ export interface WorldApi {
   conductor: Conductor
   proxies: readonly InteractiveProxy[]
   camera: PerspectiveCamera
+  setLook(look: Look): void
   onFrame(listener: FrameListener): () => void
   dispose(): void
 }
@@ -146,6 +148,7 @@ export type WorldStage = 'textures' | 'compiled' | 'ready'
 
 export interface WorldOptions {
   onStage?: (stage: WorldStage) => void
+  look?: Look
 }
 
 export async function initWorld(canvas: HTMLCanvasElement, options: WorldOptions = {}): Promise<WorldApi> {
@@ -188,7 +191,10 @@ export async function initWorld(canvas: HTMLCanvasElement, options: WorldOptions
     dt: 0,
     reducedMotion: env.reducedMotion,
     mobile: viewport.mobile,
+    vice: 0,
   }
+  let lookBlend = lookTarget(options.look ?? 'classic')
+  let lookGoal = lookBlend
 
   const frameListeners = new Set<FrameListener>()
   let animationFrame = 0
@@ -224,6 +230,8 @@ export async function initWorld(canvas: HTMLCanvasElement, options: WorldOptions
     frame.dt = dt
     frame.reducedMotion = env.reducedMotion
     frame.mobile = viewport.mobile
+    lookBlend = stepLook(lookBlend, lookGoal, dt, env.reducedMotion)
+    frame.vice = easeLook(lookBlend)
     rig.update({ progress: presented.smooth, dt, parallax: !env.touch && !env.reducedMotion })
     for (const set of sets) set.update(frame)
   }
@@ -232,7 +240,7 @@ export async function initWorld(canvas: HTMLCanvasElement, options: WorldOptions
     const elapsedMs = lastTime ? now - lastTime : NOMINAL_FRAME_MS
     lastTime = now
     advance(Math.min(elapsedMs / 1000, MAX_FRAME_SECONDS))
-    post.render(frame.world.bloom)
+    post.render(frame.world.bloom, frame.vice)
     for (const listener of frameListeners) listener(frame)
     const downgrade = governor.sample(elapsedMs, now)
     if (downgrade) applyTier(downgrade)
@@ -283,7 +291,7 @@ export async function initWorld(canvas: HTMLCanvasElement, options: WorldOptions
   if (!disposed && !contextLost) {
     post.warmUp()
     advance(0)
-    post.render(frame.world.bloom)
+    post.render(frame.world.bloom, frame.vice)
     root.classList.add(READY_CLASS)
     options.onStage?.('ready')
     startLoop()
@@ -315,6 +323,9 @@ export async function initWorld(canvas: HTMLCanvasElement, options: WorldOptions
     conductor,
     proxies: sets.flatMap((set) => set.proxies),
     camera,
+    setLook(look) {
+      lookGoal = lookTarget(look)
+    },
     onFrame(listener) {
       frameListeners.add(listener)
       return () => frameListeners.delete(listener)

@@ -81,6 +81,9 @@ const interiorEdgeDimming = 0.6
 const interiorWashStrength = 0.11
 const interiorWashInset = 0.4
 const kerbZ = 11
+const neon = { pink: '#FF2E9A', cyan: '#22E6FF', strength: 3.2, tube: 0.05, lift: 0.04 } as const
+const viceLamp = new Color('#FF4FA3')
+const neonVisible = 0.001
 
 export const entrance = {
   x: doorX,
@@ -405,6 +408,23 @@ function curtainWallGeometry(): BufferGeometry {
     pieces.push(blockBetween([-half - 0.02, slabTop - slab, slabFront - 0.01], [half + 0.02, slabTop - slab + 0.03, slabFront + 0.025]))
   }
   return merge(pieces)
+}
+
+function neonTrimGeometry(): { pink: BufferGeometry; cyan: BufferGeometry } {
+  const pink: BufferGeometry[] = []
+  const cyan: BufferGeometry[] = []
+  const front = slabFront + neon.lift
+  const side = outer + neon.lift
+  const tube = neon.tube
+  for (let level = 1; level < towerSpec.levels - 1; level += 1) {
+    const y = level * storey - slab * 0.5
+    const run = level % 2 === 0 ? pink : cyan
+    run.push(blockBetween([-side, y - tube / 2, front - tube / 2], [side, y + tube / 2, front + tube / 2]))
+    for (const x of [-side, side]) run.push(blockBetween([x - tube / 2, y - tube / 2, -side], [x + tube / 2, y + tube / 2, front]))
+  }
+  for (const x of [-side, side]) pink.push(blockBetween([x - tube / 2, 0.3, front - tube / 2], [x + tube / 2, crownBase, front + tube / 2]))
+  cyan.push(blockBetween([-side, roof + 1.08, front - tube / 2], [side, roof + 1.08 + tube, front + tube / 2]))
+  return { pink: merge(pink), cyan: merge(cyan) }
 }
 
 function streetFurnitureGeometry(): BufferGeometry {
@@ -870,6 +890,16 @@ export const createTower: FloorFactory = (context) => {
   steelDetail.castShadow = true
   road.receiveShadow = true
 
+  const neonGeometry = neonTrimGeometry()
+  const neonMaterials = [neon.pink, neon.cyan].map(
+    (color) => new MeshBasicMaterial({ color: new Color(color).multiplyScalar(neon.strength), toneMapped: false, transparent: true, opacity: 0 }),
+  )
+  const neonTrims = new Group()
+  neonTrims.name = 'neon-trims'
+  neonTrims.add(new Mesh(neonGeometry.pink, neonMaterials[0]), new Mesh(neonGeometry.cyan, neonMaterials[1]))
+  neonTrims.visible = false
+  const lampScratch = new Color()
+
   const indexEmphasis = new Array<number>(indexedFloorCount).fill(0)
   const indexTarget = new Array<number>(indexedFloorCount).fill(0)
   const proxies: InteractiveProxy[] = Array.from({ length: indexedFloorCount }, (_, floor) =>
@@ -904,11 +934,12 @@ export const createTower: FloorFactory = (context) => {
     neighbours,
     neighbourFrames,
     windows.mesh,
+    neonTrims,
     ...proxies.map((proxy) => proxy.object),
   )
 
   function update(frame: FrameState): void {
-    const { world, dt, reducedMotion, progress } = frame
+    const { world, dt, reducedMotion, progress, vice } = frame
     const interior = smoothstep(chapterIndex.frontend - 1, chapterIndex.frontend, progress.smooth) * (1 - smoothstep(chapterIndex.aiProducts, chapterIndex.aiCoding, progress.smooth))
     const underDeck = smoothstep(chapterIndex.aiCoding - 0.85, chapterIndex.aiCoding - 0.25, progress.smooth) * (1 - smoothstep(chapterIndex.aiCoding + 0.35, chapterIndex.aiCoding + 0.95, progress.smooth))
     const edgeLevel = (1 - interiorEdgeDimming * interior) * (1 - underDeck)
@@ -927,8 +958,11 @@ export const createTower: FloorFactory = (context) => {
 
     const daylight = 1 - world.dawn * 0.45
     doorEmitter.set(1.6 * daylight)
-    lampEmitter.set(2.4 * daylight)
-    poolMaterial.color.set(palette.warm).multiplyScalar(0.55 * daylight)
+    lampScratch.set(palette.warm).lerp(viceLamp, vice)
+    lampEmitter.set(2.4 * daylight, lampScratch)
+    poolMaterial.color.copy(lampScratch).multiplyScalar(0.55 * daylight)
+    neonTrims.visible = vice > neonVisible
+    for (const material of neonMaterials) material.opacity = vice
     wetReflections.material.uniforms.uIntensity.value = reflectionStrength * daylight
     const fog = context.scene.fog instanceof FogExp2 ? context.scene.fog : null
     wetReflections.material.uniforms.uFogDensity.value = fog ? fog.density : 0

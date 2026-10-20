@@ -112,7 +112,7 @@ const morningStreet: LightWindow = [9.15, 9.85, ...toEnd]
 
 const streetDoorLight = { position: [4, 2.4, 8.4], color: palette.warm, intensity: 16, distance: 16, level: 'street' } as const
 const streetLampLight = { position: [-8, 4.7, 11.65], color: palette.warm, intensity: 28, distance: 20, level: 'street' } as const
-const fillColor = '#B4C0E6'
+export const fillColor = '#B4C0E6'
 const facadeFillZ = 6.4
 
 export const lightLedger: readonly LedgerLight[] = [

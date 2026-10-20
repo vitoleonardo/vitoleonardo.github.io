@@ -6,6 +6,7 @@ export const en: Content = {
     loaderLabel: 'Loading the tower',
     mainNavLabel: 'Main',
     languageLabel: 'Language',
+    lookLabel: 'Vice City look',
     stackCount: 'Stack {n} of 7',
     contactHeading: 'Contact',
     contactLegalLabel: 'Contact and legal',
