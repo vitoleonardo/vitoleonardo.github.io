@@ -156,6 +156,8 @@ export function initInteractions(options: InteractionOptions): Interactions {
       commit(next)
     }
     root.classList.toggle(POINTING_CLASS, next !== null)
+    if (next) root.dataset.pointedHotspot = next.id
+    else delete root.dataset.pointedHotspot
   }
 
   function cameraMoved(matrix: readonly number[]): boolean {
@@ -370,6 +372,7 @@ export function initInteractions(options: InteractionOptions): Interactions {
       stopFrameListener?.()
       for (const entry of entries.values()) window.clearTimeout(entry.pulseTimer)
       root.classList.remove(POINTING_CLASS)
+      delete root.dataset.pointedHotspot
     },
   }
 }

@@ -11,7 +11,10 @@ export function createPicker(camera: PerspectiveCamera, canvas: HTMLCanvasElemen
     const height = Math.max(1, canvas.clientHeight)
     ndc.set((clientX / width) * 2 - 1, -(clientY / height) * 2 + 1)
     raycaster.setFromCamera(ndc, camera)
-    const [nearest] = raycaster.intersectObjects(objects, false)
+    const [nearest] = raycaster.intersectObjects(
+      objects.filter((object) => object.visible),
+      false,
+    )
     return nearest ? nearest.object : null
   }
 }

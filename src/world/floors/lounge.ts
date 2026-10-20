@@ -84,6 +84,7 @@ const crate = { x: 0.72, z: -4.05, yaw: 0.22, size: 0.37, height: 0.31 } as cons
 const sofa = { x: 4.75, z: 0.9, width: 2.3, depth: 0.86 } as const
 const floorLamp = { x: 6.32, z: 2.75, shadeY: 1.5, shadeRadius: 0.24, shadeHeight: 0.3 } as const
 const fishermanSpot = { x: 2.9, z: 0.3, yawBackToCamera: 0.1 } as const
+const fishermanHitBox = { width: 0.8, height: 1.75, depth: 0.5 } as const
 const holeHalf = 1.8
 const railHeight = 1.05
 
@@ -675,6 +676,16 @@ export const createLoungeFloor: FloorFactory = (context) => {
   fishermanStand.position.set(fishermanSpot.x, deckTop, fishermanSpot.z)
   fishermanStand.rotation.y = fishermanSpot.yawBackToCamera
   root.add(fishermanStand)
+  const fishermanProxy = createProxy({
+    id: 'lounge-fisherman',
+    chapters: ['about'],
+    geometry: new BoxGeometry(fishermanHitBox.width, fishermanHitBox.height, fishermanHitBox.depth),
+    position: [0, fishermanHitBox.height / 2, 0],
+    onState() {},
+  })
+  fishermanProxy.object.visible = false
+  fishermanStand.add(fishermanProxy.object)
+  proxies.push(fishermanProxy)
   void loadFisherman()
     .then(async (mesh) => {
       mesh.castShadow = true
@@ -687,6 +698,7 @@ export const createLoungeFloor: FloorFactory = (context) => {
       }
       fisherman = mesh
       fishermanStand.add(mesh)
+      fishermanProxy.object.visible = true
     })
     .catch(() => undefined)
 

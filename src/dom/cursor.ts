@@ -61,9 +61,15 @@ export function initCursor(): () => void {
     return element
   }
 
+  function pointedNote(): string | null {
+    const id = root.dataset.pointedHotspot
+    if (!id) return null
+    return document.querySelector(`[data-cursor-note="${CSS.escape(id)}"]`)?.textContent?.trim() || null
+  }
+
   function syncReadout(): void {
     if (!readout) return
-    const text = formatReadout(altimeter?.textContent)
+    const text = pointedNote() ?? formatReadout(altimeter?.textContent)
     if (readout.textContent === text) return
     readout.textContent = text
     readoutSize = { width: readout.offsetWidth, height: readout.offsetHeight }
@@ -185,6 +191,7 @@ export function initCursor(): () => void {
       disengage()
       return
     }
+    syncReadout()
     const pointing = root.classList.contains(POINTING_CLASS)
     if (pointing === pointingAtWorldHotspot) return
     pointingAtWorldHotspot = pointing
@@ -192,7 +199,7 @@ export function initCursor(): () => void {
     modeStale = true
     request()
   })
-  rootObserver.observe(root, { attributes: true, attributeFilter: ['class'] })
+  rootObserver.observe(root, { attributes: true, attributeFilter: ['class', 'data-pointed-hotspot'] })
 
   const altimeterObserver = new MutationObserver(syncReadout)
   if (altimeter) altimeterObserver.observe(altimeter, { childList: true, characterData: true, subtree: true })

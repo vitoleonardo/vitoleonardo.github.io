@@ -252,6 +252,7 @@ export const en: Content = {
     },
     portraitAlt: 'Portrait of Vito Krawutschke',
     footer: 'The roof. A light wall, a DJ booth, the homelab.',
+    fishermanNote: 'I drew him on paper first',
     next: 'Next: say hi',
   },
   sayHi: {

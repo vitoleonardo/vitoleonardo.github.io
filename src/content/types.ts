@@ -83,6 +83,7 @@ export interface Content {
     homelab: { summary: string; services: { name: string; note: string }[] }
     portraitAlt: string
     footer: string
+    fishermanNote: string
     next: string
   }
   sayHi: {

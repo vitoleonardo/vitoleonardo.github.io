@@ -263,6 +263,7 @@ export const de: Content = {
     },
     portraitAlt: 'Porträt von Vito Krawutschke',
     footer: 'Das Dach. Eine Lichtwand, ein DJ-Pult, das Homelab.',
+    fishermanNote: 'Den habe ich zuerst auf Papier gezeichnet',
     next: 'Weiter: Hallo sagen',
   },
   sayHi: {
