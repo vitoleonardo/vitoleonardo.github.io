@@ -137,7 +137,7 @@ export const lightLedger: readonly LedgerLight[] = [
   { id: 'frontend-pendants-east', lane: 3, window: streetWindow, position: [3.8, floorBase.frontend + 2.35, 3.75], color: palette.warm, intensity: 6.5, distance: 7.5, level: 'practical' },
   { id: 'cloud-practical', lane: 3, window: around(chapterIndex.cloud), position: [-2.2, floorBase.cloud + 2.5, 1.2], color: '#D2DAFF', intensity: 15, distance: 13, level: 'practical' },
   { id: 'ai-core-signal', lane: 3, window: around(chapterIndex.aiProducts), position: [1.2, floorBase['ai-core'] + 1.9, 0.6], color: '#3D63FF', intensity: 22, distance: 15, level: 'practical', breath: aiCoreBreath },
-  { id: 'about-floor-lamp', lane: 3, window: around(chapterIndex.about), position: [6.32, floorBase.lounge + 1.25, 2.75], color: palette.warm, intensity: 7, distance: 9, level: 'practical' },
+  { id: 'about-floor-lamp', lane: 3, window: around(chapterIndex.about), position: [5.05, floorBase.lounge + 1.25, -2.35], color: palette.warm, intensity: 7, distance: 9, level: 'practical' },
 
   { id: 'frontend-practical', lane: 4, window: atelierEntry, position: [0.8, floorBase.frontend + 2.6, 0.6], color: palette.warm, intensity: 8, distance: 12, level: 'practical' },
   { id: 'about-wall-spill', lane: 4, window: around(chapterIndex.about), position: [1.6, floorBase.lounge + 2.4, -2.4], color: '#8FA3D9', intensity: 14, distance: 16, level: 'practical' },

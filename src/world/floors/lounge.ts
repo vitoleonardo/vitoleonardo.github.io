@@ -5,12 +5,15 @@ import {
   Color,
   CylinderGeometry,
   DoubleSide,
+  ExtrudeGeometry,
   Group,
+  LatheGeometry,
   Mesh,
   MeshBasicMaterial,
   MeshStandardMaterial,
   PlaneGeometry,
   ShaderMaterial,
+  Shape,
   SphereGeometry,
   TorusGeometry,
   TubeGeometry,
@@ -76,13 +79,27 @@ const boothFront = booth.z + booth.depth / 2
 const turntableOffset = 0.78
 const equaliser = { width: booth.width - 0.34, height: 0.05, y: boothTop - 0.095 } as const
 
-const rack = { x: 5.05, z: -4.15, yaw: -0.26, width: 0.6, depth: 0.6, pitch: 0.1, firstUnit: 0.17 } as const
+const rack = { x: -0.4, z: -4, yaw: 0.32, width: 0.6, depth: 0.6, pitch: 0.1, firstUnit: 0.17 } as const
 const rackHeight = rack.firstUnit + serviceCount * rack.pitch + 0.07
 const rackFace = 0.262
 
-const crate = { x: 0.72, z: -4.05, yaw: 0.22, size: 0.37, height: 0.31 } as const
-const sofa = { x: 4.75, z: 0.9, width: 2.3, depth: 0.86 } as const
-const floorLamp = { x: 6.32, z: 2.75, shadeY: 1.5, shadeRadius: 0.24, shadeHeight: 0.3 } as const
+const crate = { x: 1.1, z: -3.65, yaw: 0.18, size: 0.37, height: 0.31 } as const
+const speakerStacks = [
+  { x: 0.65, z: -4.45, yaw: 0.2, cableTo: [1.6, -4.75] },
+  { x: 4.55, z: -4.45, yaw: -0.18, cableTo: [3.6, -4.75] },
+] as const
+const bassBin = { width: 1, height: 0.6, depth: 0.84, dolly: 0.08 } as const
+const midHigh = { height: 1.07, frontHalf: 0.35, rearHalf: 0.21, depth: 0.67, recess: 0.24, pitch: 0.07, lift: 0.06 } as const
+const snakePath = [
+  [3.55, 1.05],
+  [4.35, 0.35],
+  [3.9, -0.5],
+  [4.55, -1.35],
+  [4.1, -2.15],
+] as const
+const snakeElement = { pitch: 0.19, width: 0.2, poufs: 2 } as const
+const ballChair = { x: 5.3, z: -0.75, yaw: -0.25, radius: 0.53, lining: 0.5, centreY: 0.69, cut: 1.18, tilt: 0.16 } as const
+const floorLamp = { x: 5.05, z: -2.35, shadeY: 1.5, shadeRadius: 0.24, shadeHeight: 0.3 } as const
 const fishermanSpot = { x: 2.9, z: 0.3, yawBackToCamera: 0.1 } as const
 const fishermanHitBox = { width: 0.8, height: 1.75, depth: 0.5 } as const
 const holeHalf = 1.8
@@ -91,6 +108,9 @@ const railHeight = 1.05
 const gearBreakup = { cellsPerMetre: 4, roughnessSwing: 0.1, albedoSwing: 0.06, verticalStretch: 1 }
 const aluminiumBreakup = { cellsPerMetre: 9, roughnessSwing: 0.1, albedoSwing: 0.06, verticalStretch: 6 }
 const fabricBreakup = { cellsPerMetre: 6, roughnessSwing: 0.04, albedoSwing: 0.09, verticalStretch: 1 }
+const leatherBreakup = { cellsPerMetre: 7, roughnessSwing: 0.08, albedoSwing: 0.05, verticalStretch: 1 }
+const gelcoatBreakup = { cellsPerMetre: 3, roughnessSwing: 0.04, albedoSwing: 0.02, verticalStretch: 1 }
+const viceLeatherTint = new Color('#FFB8E2')
 
 const sleeveColors = ['#C9B48A', '#2E4057', '#8C3B2E', '#D9D3C7', '#1E1F22', '#B5793A', '#4F6B5A', '#6E5A7E', '#C2402F', '#E1C16E'] as const
 
@@ -100,11 +120,74 @@ interface Parts {
   aluminium: BufferGeometry[]
   gear: BufferGeometry[]
   fabric: BufferGeometry[]
+  leather: BufferGeometry[]
+  gelcoat: BufferGeometry[]
   warm: BufferGeometry[]
 }
 
 function createParts(): Parts {
-  return { wood: [], steel: [], aluminium: [], gear: [], fabric: [], warm: [] }
+  return { wood: [], steel: [], aluminium: [], gear: [], fabric: [], leather: [], gelcoat: [], warm: [] }
+}
+
+function placeParts(target: Parts, local: Parts, position: Vec3, rotation: Vec3): void {
+  for (const key of Object.keys(local) as (keyof Parts)[]) {
+    if (local[key].length > 0) target[key].push(place(merge(local[key]), position, rotation))
+  }
+}
+
+function flipInside(geometry: BufferGeometry): BufferGeometry {
+  const index = geometry.getIndex()
+  if (index) {
+    for (let face = 0; face < index.count; face += 3) {
+      const second = index.getX(face + 1)
+      index.setX(face + 1, index.getX(face + 2))
+      index.setX(face + 2, second)
+    }
+  }
+  const normal = geometry.getAttribute('normal')
+  for (let vertex = 0; vertex < normal.count; vertex += 1) {
+    normal.setXYZ(vertex, -normal.getX(vertex), -normal.getY(vertex), -normal.getZ(vertex))
+  }
+  return geometry
+}
+
+function exponentialHorn(mouthRadius: number, throatRadius: number, depth: number, segments: number): BufferGeometry {
+  const flare = Math.log(mouthRadius / throatRadius) / depth
+  const profile = [new Vector2(mouthRadius * 1.07, depth)]
+  for (let step = 12; step >= 0; step -= 1) {
+    const y = (depth * step) / 12
+    profile.push(new Vector2(throatRadius * Math.exp(flare * y), y))
+  }
+  return new LatheGeometry(profile, segments)
+}
+
+function phasePlug(radius: number, length: number, segments: number): BufferGeometry {
+  const profile = [
+    new Vector2(radius, 0),
+    new Vector2(radius * 0.92, length * 0.4),
+    new Vector2(radius * 0.6, length * 0.78),
+    new Vector2(0, length),
+  ]
+  return new LatheGeometry(profile, segments)
+}
+
+function roundHorn(local: Parts, centre: Vec3, mouthRadius: number, throatRadius: number, depth: number, segments: number): void {
+  const throat: Vec3 = [centre[0], centre[1], centre[2] - depth]
+  local.gear.push(tinted(place(exponentialHorn(mouthRadius, throatRadius, depth, segments), throat, [Math.PI / 2, 0, 0]), '#30343B'))
+  local.aluminium.push(place(phasePlug(throatRadius * 0.85, depth * 0.45, 20), throat, [Math.PI / 2, 0, 0]))
+}
+
+function rectangularHorn(width: number, height: number, depth: number, throatScale: number, mouth: Vec3): BufferGeometry {
+  const frustum = flipInside(new CylinderGeometry(Math.SQRT1_2, Math.SQRT1_2 * throatScale, depth, 4, 1, true).rotateY(Math.PI / 4))
+  const flat = place(frustum, [mouth[0], mouth[1], mouth[2] - depth / 2], [Math.PI / 2, 0, 0], [width, 1, height]).toNonIndexed()
+  flat.computeVertexNormals()
+  return flat
+}
+
+function trapezoidPrism(outline: readonly (readonly [number, number])[], bottom: number, height: number): BufferGeometry {
+  const shape = new Shape(outline.map(([x, z]) => new Vector2(x, -z)))
+  const prism = new ExtrudeGeometry(shape, { depth: height, bevelEnabled: false })
+  return prism.rotateX(-Math.PI / 2).translate(0, bottom, 0)
 }
 
 function tinted(geometry: BufferGeometry, color: ColorRepresentation): BufferGeometry {
@@ -350,21 +433,178 @@ function addRack(parts: Parts): void {
   parts.gear.push(place(merge(units), transform, [0, rack.yaw, 0]))
 }
 
-function addSofa(parts: Parts): void {
-  const { x, z, width, depth } = sofa
-  const baseY = deckTop + 0.08
-  parts.fabric.push(roundedBox([width, 0.24, depth], [x, baseY + 0.12, z], 0.03))
-  const seatWidth = (width - 0.4) / 3
-  for (let seat = 0; seat < 3; seat += 1) {
-    const seatX = x - width / 2 + 0.2 + seatWidth / 2 + seat * seatWidth
-    parts.fabric.push(roundedBox([seatWidth - 0.01, 0.14, 0.66], [seatX, baseY + 0.31, z - 0.08], 0.05))
-    parts.fabric.push(roundedBox([seatWidth - 0.01, 0.4, 0.17], [seatX, baseY + 0.5, z + 0.3], 0.07, [0.16, 0, 0]))
+function addSpeakerStack(parts: Parts, stack: (typeof speakerStacks)[number]): void {
+  const local = createParts()
+  const { width, height, depth, dolly } = bassBin
+  const binTop = dolly + height
+  const cabinet = '#141518'
+  const topCabinet = '#16171B'
+  const hornShade = '#30343B'
+  const darkThroat = '#0A0B0C'
+  const noseShade = '#1E2126'
+
+  local.gear.push(tinted(block([width - 0.06, dolly - 0.02, depth - 0.06], [0, 0.02 + (dolly - 0.02) / 2, 0]), '#0E0F12'))
+  for (const [dx, dz] of [
+    [-1, -1],
+    [1, -1],
+    [-1, 1],
+    [1, 1],
+  ] as const) {
+    local.gear.push(tinted(block([0.09, 0.024, 0.09], [dx * (width / 2 - 0.06), 0.012, dz * (depth / 2 - 0.06)]), darkThroat))
   }
-  for (const side of [-1, 1]) parts.fabric.push(roundedBox([0.2, 0.5, depth], [x + side * (width / 2 - 0.1), baseY + 0.25, z], 0.05))
-  parts.fabric.push(roundedBox([0.4, 0.38, 0.12], [x - width / 2 + 0.42, baseY + 0.55, z + 0.08], 0.05, [0.25, 0.3, -0.12]))
-  for (const [dx, dz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]] as const) {
-    parts.steel.push(block([0.05, 0.08, 0.05], [x + dx * (width / 2 - 0.12), deckTop + 0.04, z + dz * (depth / 2 - 0.1)]))
+
+  local.gear.push(tinted(roundedBox([width, 0.036, depth], [0, dolly + 0.018, 0], 0.012), cabinet))
+  local.gear.push(tinted(roundedBox([width, 0.036, depth], [0, binTop - 0.018, 0], 0.012), cabinet))
+  for (const side of [-1, 1]) {
+    local.gear.push(tinted(roundedBox([0.036, height - 0.06, depth], [side * (width / 2 - 0.018), dolly + height / 2, 0], 0.012), cabinet))
+    for (const handleZ of [-0.18, 0.18]) {
+      local.gear.push(tinted(block([0.012, 0.11, 0.16], [side * (width / 2 + 0.001), dolly + height / 2, handleZ]), darkThroat))
+    }
   }
+  local.gear.push(tinted(roundedBox([width - 0.06, height - 0.06, 0.04], [0, dolly + height / 2, -depth / 2 + 0.02], 0.012), cabinet))
+  local.gear.push(tinted(roundedBox([0.034, height - 0.06, 0.24], [0, dolly + height / 2, depth / 2 - 0.13], 0.008), cabinet))
+  local.gear.push(tinted(block([width - 0.072, height - 0.072, 0.02], [0, dolly + height / 2, depth / 2 - 0.28]), darkThroat))
+
+  for (const side of [-1, 1]) {
+    const bayX = side * 0.235
+    local.gear.push(tinted(rectangularHorn(0.42, height - 0.08, 0.25, 0.45, [bayX, dolly + height / 2, depth / 2 - 0.02]), hornShade))
+    const wedgeOutline = [
+      [bayX - 0.075, depth / 2 - 0.26],
+      [bayX, depth / 2 - 0.04],
+      [bayX + 0.075, depth / 2 - 0.26],
+    ] as const
+    local.gear.push(tinted(trapezoidPrism(wedgeOutline, dolly + 0.04, height - 0.08), noseShade))
+  }
+
+  for (const side of [-1, 1]) {
+    const skidX = side * 0.24
+    local.steel.push(block([0.032, 0.024, 0.56], [skidX, binTop + 0.012, -0.02]))
+    local.steel.push(block([0.03, midHigh.lift, 0.03], [skidX, binTop + midHigh.lift / 2, 0.22]))
+    local.steel.push(block([0.03, midHigh.lift + 0.04, 0.03], [skidX, binTop + (midHigh.lift + 0.04) / 2, -0.24]))
+    local.steel.push(block([0.032, 0.02, 0.54], [skidX, binTop + midHigh.lift + 0.012, -0.01], [midHigh.pitch, 0, 0]))
+  }
+  local.steel.push(block([0.52, 0.022, 0.03], [0, binTop + 0.02, 0.22]))
+  local.steel.push(block([0.52, 0.022, 0.03], [0, binTop + midHigh.lift + 0.025, -0.24]))
+
+  const top = createParts()
+  const frontZ = midHigh.depth / 2
+  const rearZ = -midHigh.depth / 2
+  const recessZ = frontZ - midHigh.recess
+  const capThickness = 0.032
+  const cheekHalf = midHigh.frontHalf - 0.045
+  const notchHalf = cheekHalf - 0.02
+  const fullOutline = [
+    [-midHigh.rearHalf, rearZ],
+    [-midHigh.frontHalf, frontZ],
+    [midHigh.frontHalf, frontZ],
+    [midHigh.rearHalf, rearZ],
+  ] as const
+  const carcassOutline = [
+    [-midHigh.rearHalf, rearZ],
+    [-midHigh.frontHalf, frontZ],
+    [-cheekHalf, frontZ],
+    [-notchHalf, recessZ],
+    [notchHalf, recessZ],
+    [cheekHalf, frontZ],
+    [midHigh.frontHalf, frontZ],
+    [midHigh.rearHalf, rearZ],
+  ] as const
+
+  top.gear.push(tinted(trapezoidPrism(fullOutline, 0, capThickness), topCabinet))
+  top.gear.push(tinted(trapezoidPrism(fullOutline, midHigh.height - capThickness, capThickness), topCabinet))
+  top.gear.push(tinted(trapezoidPrism(carcassOutline, capThickness, midHigh.height - capThickness * 2), topCabinet))
+  top.gear.push(tinted(block([cheekHalf * 2, 0.026, midHigh.recess - 0.01], [0, 0.48, recessZ + (midHigh.recess - 0.01) / 2]), topCabinet))
+  top.gear.push(tinted(block([notchHalf * 2 - 0.01, midHigh.height - capThickness * 2 - 0.01, 0.012], [0, midHigh.height / 2, recessZ + 0.008]), darkThroat))
+
+  top.gear.push(tinted(rectangularHorn(cheekHalf * 2 - 0.02, 0.41, midHigh.recess - 0.02, 0.42, [0, 0.255, frontZ - 0.008]), hornShade))
+  roundHorn(top, [0, 0.69, frontZ - 0.012], 0.165, 0.042, 0.2, 32)
+  top.aluminium.push(block([0.014, 0.27, 0.14], [0, 0.69, frontZ - 0.09]))
+  top.aluminium.push(block([0.006, 0.31, 0.04], [0, 0.69, frontZ - 0.025]))
+  for (const side of [-1, 1]) {
+    roundHorn(top, [side * 0.19, 0.91, frontZ - 0.012], 0.062, 0.018, 0.1, 24)
+    top.steel.push(block([0.022, midHigh.height - 0.04, 0.028], [side * (midHigh.frontHalf - 0.012), midHigh.height / 2, frontZ + 0.004]))
+    for (const bracketY of [0.12, midHigh.height - 0.12]) {
+      top.steel.push(block([0.016, 0.06, 0.08], [side * (midHigh.frontHalf - 0.006), bracketY, frontZ - 0.04]))
+    }
+  }
+
+  placeParts(local, top, [0, binTop + midHigh.lift, 0], [midHigh.pitch, 0, 0])
+  placeParts(parts, local, [stack.x, deckTop, stack.z], [0, stack.yaw, 0])
+
+  const sin = Math.sin(stack.yaw)
+  const cos = Math.cos(stack.yaw)
+  const backZ = -depth / 2
+  const cable = new CatmullRomCurve3([
+    new Vector3(stack.x + backZ * sin, deckTop + 0.18, stack.z + backZ * cos),
+    new Vector3(stack.x + (backZ - 0.08) * sin, deckTop + 0.014, stack.z + (backZ - 0.08) * cos),
+    new Vector3((stack.x + stack.cableTo[0]) / 2, deckTop + 0.014, Math.min(stack.z + backZ * cos, stack.cableTo[1]) - 0.08),
+    new Vector3(stack.cableTo[0], deckTop + 0.014, stack.cableTo[1]),
+  ])
+  parts.gear.push(tinted(new TubeGeometry(cable, 20, 0.013, 6, false), '#111214'))
+}
+
+function addSnakeSofa(parts: Parts): void {
+  const curve = new CatmullRomCurve3(snakePath.map(([x, z]) => new Vector3(x, 0, z)))
+  const count = Math.round(curve.getLength() / snakeElement.pitch)
+  const random = createRandom(600)
+  const baseCognac = new Color('#8A4B26')
+  const seatColor = new Color()
+  const creaseColor = new Color()
+
+  for (let index = 0; index < count; index += 1) {
+    const u = index / (count - 1)
+    const point = curve.getPointAt(u)
+    const tangent = curve.getTangentAt(u)
+    const yaw = Math.atan2(-tangent.z, tangent.x)
+    const jitter = 1 + (random() - 0.5) * 0.06
+    seatColor.copy(baseCognac).multiplyScalar(jitter)
+    creaseColor.copy(seatColor).multiplyScalar(0.94)
+
+    const element: BufferGeometry[] = [
+      tinted(block([0.16, 0.085, 0.76], [0, 0.0425, 0]), '#221610'),
+      tinted(roundedBox([snakeElement.width, 0.29, 0.88], [0, 0.23, 0.02], 0.055), seatColor),
+    ]
+    if (index >= snakeElement.poufs && index < count - snakeElement.poufs) {
+      element.push(tinted(roundedBox([snakeElement.width, 0.42, 0.26], [0, 0.5, -0.3], 0.055, [-0.22, 0, 0]), seatColor))
+      element.push(tinted(roundedBox([snakeElement.width, 0.15, 0.2], [0, 0.39, -0.14], 0.045, [-0.12, 0, 0]), creaseColor))
+    }
+    parts.leather.push(place(merge(element), [point.x, deckTop, point.z], [0, yaw, 0]))
+  }
+}
+
+function addBallChair(parts: Parts): void {
+  const local = createParts()
+  const { radius, lining, centreY, cut, tilt } = ballChair
+  const pedestalProfile = [
+    new Vector2(0.33, 0),
+    new Vector2(0.33, 0.012),
+    new Vector2(0.16, 0.035),
+    new Vector2(0.065, 0.085),
+    new Vector2(0.045, 0.14),
+    new Vector2(0.045, 0.18),
+  ]
+  local.aluminium.push(new LatheGeometry(pedestalProfile, 32))
+
+  const shellRotation: Vec3 = [Math.PI / 2 - tilt, 0, 0]
+  local.gelcoat.push(place(new SphereGeometry(radius, 40, 24, 0, Math.PI * 2, cut, Math.PI - cut), [0, centreY, 0], shellRotation))
+  local.fabric.push(
+    tinted(place(flipInside(new SphereGeometry(lining, 40, 24, 0, Math.PI * 2, cut, Math.PI - cut)), [0, centreY, 0], shellRotation), '#B3212B'),
+  )
+
+  const rimSphereRadius = (radius + lining) / 2
+  const rimOffset = rimSphereRadius * Math.cos(cut)
+  local.gelcoat.push(
+    place(
+      new TorusGeometry(rimSphereRadius * Math.sin(cut), 0.022, 10, 40),
+      [0, centreY + rimOffset * Math.sin(tilt), rimOffset * Math.cos(tilt)],
+      [-tilt, 0, 0],
+    ),
+  )
+
+  local.fabric.push(tinted(roundedBox([0.54, 0.11, 0.46], [0, 0.47, 0.02], 0.045), '#C42A33'))
+  local.fabric.push(tinted(roundedBox([0.46, 0.34, 0.11], [0, 0.71, -0.24], 0.045, [0.18, 0, 0]), '#C42A33'))
+
+  placeParts(parts, local, [ballChair.x, deckTop, ballChair.z], [0, ballChair.yaw, 0])
 }
 
 function addFloorLamp(parts: Parts): void {
@@ -566,7 +806,9 @@ export const createLoungeFloor: FloorFactory = (context) => {
   addBooth(parts)
   addCrate(parts)
   addRack(parts)
-  addSofa(parts)
+  for (const stack of speakerStacks) addSpeakerStack(parts, stack)
+  addSnakeSofa(parts)
+  addBallChair(parts)
   addFloorLamp(parts)
   addHoleRailing(parts)
 
@@ -591,7 +833,15 @@ export const createLoungeFloor: FloorFactory = (context) => {
     areaEmitter,
   )
   const fabricMaterial = litByArea(
-    withSurfaceBreakup(new MeshStandardMaterial({ color: '#3B4250', roughness: 0.96, metalness: 0 }), fabricBreakup),
+    withSurfaceBreakup(new MeshStandardMaterial({ vertexColors: true, roughness: 0.92, metalness: 0 }), fabricBreakup),
+    areaEmitter,
+  )
+  const leatherMaterial = litByArea(
+    withSurfaceBreakup(new MeshStandardMaterial({ vertexColors: true, roughness: 0.38, metalness: 0 }), leatherBreakup),
+    areaEmitter,
+  )
+  const gelcoatMaterial = litByArea(
+    withSurfaceBreakup(new MeshStandardMaterial({ color: '#F0EDE6', roughness: 0.16, metalness: 0 }), gelcoatBreakup),
     areaEmitter,
   )
 
@@ -601,8 +851,10 @@ export const createLoungeFloor: FloorFactory = (context) => {
   const aluminium = new Mesh(merge(parts.aluminium), aluminiumMaterial)
   const gear = new Mesh(merge(parts.gear), gearMaterial)
   const fabric = new Mesh(merge(parts.fabric), fabricMaterial)
-  for (const mesh of [steel, gear]) mesh.castShadow = true
-  for (const mesh of [steel, gear, fabric]) mesh.receiveShadow = true
+  const leather = new Mesh(merge(parts.leather), leatherMaterial)
+  const gelcoat = new Mesh(merge(parts.gelcoat), gelcoatMaterial)
+  for (const mesh of [steel, gear, fabric, leather, gelcoat]) mesh.castShadow = true
+  for (const mesh of [steel, gear, fabric, leather, gelcoat]) mesh.receiveShadow = true
 
   const warmEmitter = createEmitter(palette.warm, 1, { vertexColors: true, side: DoubleSide })
   const warmLights = new Mesh(merge(parts.warm), warmEmitter.material)
@@ -668,7 +920,22 @@ export const createLoungeFloor: FloorFactory = (context) => {
     }),
   )
 
-  root.add(wood, steel, aluminium, gear, fabric, warmLights, diffuser, wallHalo, equaliserStrip, glows, leds, ...proxies.map((proxy) => proxy.object))
+  root.add(
+    wood,
+    steel,
+    aluminium,
+    gear,
+    fabric,
+    leather,
+    gelcoat,
+    warmLights,
+    diffuser,
+    wallHalo,
+    equaliserStrip,
+    glows,
+    leds,
+    ...proxies.map((proxy) => proxy.object),
+  )
 
   let disposed = false
   let fisherman: Fisherman | null = null
@@ -723,6 +990,7 @@ export const createLoungeFloor: FloorFactory = (context) => {
     ledWall.setPower(power * wallLuminance)
     areaEmitter.radiance.copy(spillColor).multiplyScalar(power)
     wallHaloColor.copy(spillColor).multiplyScalar(power * haloStrength)
+    leatherMaterial.color.set('#ffffff').lerp(viceLeatherTint, frame.vice)
 
     const practical = 0.3 + 0.7 * world.practicals
     warmEmitter.set(1.6 * practical)
