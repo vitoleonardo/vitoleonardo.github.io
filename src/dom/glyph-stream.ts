@@ -11,6 +11,7 @@ import {
   strokeRadius,
   type Rgb,
 } from './glyph-stream-math'
+import type { LookSwitch } from './look-switch'
 import { hasFinePointer } from './pointer-capability'
 
 const CELL_SIZE = 14
@@ -64,7 +65,7 @@ function readPalette(): Palette {
   }
 }
 
-export function initGlyphStream(): () => void {
+export function initGlyphStream(look: Pick<LookSwitch, 'onChange'>): () => void {
   const lifetime = new AbortController()
   const { signal } = lifetime
 
@@ -297,6 +298,9 @@ export function initGlyphStream(): () => void {
   document.documentElement.addEventListener('pointerleave', stopPouring, { passive: true, signal })
   window.addEventListener('blur', stopPouring, { signal })
   window.addEventListener('resize', resize, { passive: true, signal })
+  look.onChange(() => {
+    if (canvas && !signal.aborted) palette = readPalette()
+  })
 
   return () => {
     lifetime.abort()

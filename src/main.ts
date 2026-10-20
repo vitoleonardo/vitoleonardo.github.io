@@ -35,7 +35,7 @@ const rail = initRail(
   feed,
   sections.map((section) => section.id),
 )
-initGlyphStream()
+initGlyphStream(lookSwitch)
 initCursor()
 initScramble()
 initEmailButton()
