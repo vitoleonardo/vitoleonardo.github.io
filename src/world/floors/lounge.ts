@@ -91,14 +91,14 @@ const speakerStacks = [
 const bassBin = { width: 1, height: 0.6, depth: 0.84, dolly: 0.08 } as const
 const midHigh = { height: 1.07, frontHalf: 0.35, rearHalf: 0.21, depth: 0.67, recess: 0.24, pitch: 0.07, lift: 0.06 } as const
 const snakePath = [
-  [3.55, 1.05],
-  [4.35, 0.35],
-  [3.9, -0.5],
-  [4.55, -1.35],
-  [4.1, -2.15],
+  [4.05, 0.34],
+  [4.51, -0.61],
+  [3.77, -1.22],
+  [4.03, -2.26],
+  [3.31, -2.82],
 ] as const
 const snakeElement = { pitch: 0.19, width: 0.2, poufs: 2 } as const
-const ballChair = { x: 5.3, z: -0.75, yaw: -0.25, radius: 0.53, lining: 0.5, centreY: 0.69, cut: 1.18, tilt: 0.16 } as const
+const ballChair = { x: 5.3, z: 0.55, yaw: -0.5, radius: 0.53, lining: 0.5, centreY: 0.69, cut: 1.18, tilt: 0.16 } as const
 const floorLamp = { x: 5.05, z: -2.35, shadeY: 1.5, shadeRadius: 0.24, shadeHeight: 0.3 } as const
 const fishermanSpot = { x: 2.9, z: 0.3, yawBackToCamera: 0.1 } as const
 const fishermanHitBox = { width: 0.8, height: 1.75, depth: 0.5 } as const
