@@ -65,6 +65,7 @@ const boulevardRows = [
 ] as const
 const boulevardSeed = 77
 const viceFoliage = new Color('#B4FFE6')
+const barkColor = new Color('#6E5C4A')
 const growThreshold = 0.001
 
 interface LeafProfile {
@@ -149,13 +150,13 @@ function broadLeafClump(random: Random): BufferGeometry {
 
 function palm(random: Random): BufferGeometry {
   const { height, radiusTop, radiusBase, fronds } = palmTrunk
-  const parts: BufferGeometry[] = [place(new CylinderGeometry(radiusTop, radiusBase, height, 7), [0, height / 2, 0])]
+  const parts: BufferGeometry[] = [withBark(place(new CylinderGeometry(radiusTop, radiusBase, height, 7), [0, height / 2, 0]), 1)]
   for (let frond = 0; frond < fronds; frond += 1) {
     const yaw = (frond / fronds) * Math.PI * 2 + between(random, -0.25, 0.25)
-    parts.push(orientedLeaf(palmFrond, [0, height, 0], yaw, between(random, 0.35, 0.9), between(random, 0.85, 1.1)))
+    parts.push(withBark(orientedLeaf(palmFrond, [0, height, 0], yaw, between(random, 0.35, 0.9), between(random, 0.85, 1.1)), 0))
   }
   for (const yaw of [between(random, 0, Math.PI), between(random, Math.PI, Math.PI * 2)]) {
-    parts.push(orientedLeaf(palmFrond, [0, height + 0.05, 0], yaw, 1.35, 0.55))
+    parts.push(withBark(orientedLeaf(palmFrond, [0, height + 0.05, 0], yaw, 1.35, 0.55), 0))
   }
   const geometry = merge(parts)
   bakeOcclusion(geometry, (x, y, z) => 0.5 + 0.5 * Math.max(smooth(0, height * 0.9, y) * 0.6, smooth(0, 1.2, Math.hypot(x, z))))
@@ -215,12 +216,17 @@ function withSway(geometry: BufferGeometry, weight: (x: number, y: number, z: nu
   return geometry
 }
 
+function withBark(geometry: BufferGeometry, bark: 0 | 1): BufferGeometry {
+  geometry.setAttribute('aBark', new Float32BufferAttribute(new Float32Array(geometry.getAttribute('position').count).fill(bark), 1))
+  return geometry
+}
+
 function plantGeometries(seed: number): Record<PlantKind, BufferGeometry> {
   return {
-    clump: broadLeafClump(createRandom(seed + 1)),
+    clump: withBark(broadLeafClump(createRandom(seed + 1)), 0),
     palm: palm(createRandom(seed + 2)),
-    fern: fernClump(createRandom(seed + 3)),
-    vine: vine(createRandom(seed + 4)),
+    fern: withBark(fernClump(createRandom(seed + 3)), 0),
+    vine: withBark(vine(createRandom(seed + 4)), 0),
   }
 }
 
@@ -335,13 +341,16 @@ transformed.y += flutter * aSway * aSway * swayGust * ${flutterAmplitude.toFixed
 transformed.x += flutter * aSway * aSway * ${(flutterAmplitude * 0.5).toFixed(4)};
 `
 
-function foliageMaterial(wind: { value: number }): MeshStandardMaterial {
+function foliageMaterial(wind: { value: number }, leaf: { value: Color }): MeshStandardMaterial {
   const material = new MeshStandardMaterial({ color: '#ffffff', roughness: 0.72, metalness: 0, side: DoubleSide, vertexColors: true })
   material.onBeforeCompile = (shader) => {
     shader.uniforms.uWind = wind
+    shader.uniforms.uLeaf = leaf
+    shader.uniforms.uBark = { value: barkColor }
     shader.vertexShader = shader.vertexShader
-      .replace('#include <common>', '#include <common>\nattribute float aSway;\nattribute float aPhase;\nuniform float uWind;')
+      .replace('#include <common>', '#include <common>\nattribute float aSway;\nattribute float aPhase;\nattribute float aBark;\nuniform float uWind;\nuniform vec3 uLeaf;\nuniform vec3 uBark;')
       .replace('#include <begin_vertex>', `#include <begin_vertex>\n${swayVertex}`)
+      .replace('#include <color_vertex>', '#include <color_vertex>\nvColor.rgb = mix( vColor.rgb * uLeaf, color.rgb * uBark, aBark );')
     shader.fragmentShader = shader.fragmentShader.replace(
       '#include <lights_fragment_end>',
       `#include <lights_fragment_end>\nreflectedLight.indirectDiffuse += diffuseColor.rgb * ${scatteredFill.toFixed(2)};`,
@@ -364,7 +373,9 @@ function bakedFoliage(geometries: Record<PlantKind, BufferGeometry>, plan: Plant
     for (const placement of plan[kind]) {
       const part = geometries[kind].clone().applyMatrix4(placementMatrix(placement))
       const color = part.getAttribute('color')
+      const bark = part.getAttribute('aBark')
       for (let vertex = 0; vertex < color.count; vertex += 1) {
+        if (bark.getX(vertex) === 1) continue
         color.setXYZ(vertex, color.getX(vertex) * placement.tint.r, color.getY(vertex) * placement.tint.g, color.getZ(vertex) * placement.tint.b)
       }
       part.setAttribute('aPhase', new Float32BufferAttribute(new Float32Array(color.count).fill(placementPhase(placement)), 1))
@@ -405,7 +416,8 @@ export function createGreenery(mobile: boolean): Greenery {
   root.name = 'greenery'
   const wind = { value: 0 }
   const clock = createSceneClock()
-  const material = foliageMaterial(wind)
+  const leaf = { value: new Color('#ffffff') }
+  const material = foliageMaterial(wind, leaf)
   const plan = plantingPlan(greenerySeed, mobile ? mobileDensity : desktopDensity)
   const geometries = plantGeometries(greenerySeed)
   const avenue = boulevardPlan(boulevardSeed)
@@ -435,7 +447,7 @@ export function createGreenery(mobile: boolean): Greenery {
       if (frame.vice === grown) return
       grown = frame.vice
       growBoulevard(boulevard, avenue, grown)
-      material.color.set('#ffffff').lerp(viceFoliage, grown)
+      leaf.value.set('#ffffff').lerp(viceFoliage, grown)
     },
   }
 }
