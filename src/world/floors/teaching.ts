@@ -1,5 +1,7 @@
 import {
   AdditiveBlending,
+  BoxGeometry,
+  BufferGeometry,
   CatmullRomCurve3,
   Color,
   CylinderGeometry,
@@ -13,15 +15,26 @@ import {
   RingGeometry,
   Shape,
   SphereGeometry,
+  TorusGeometry,
   TubeGeometry,
   Vector2,
   Vector3,
-  type BufferGeometry,
 } from 'three'
-import { composeMatrix, cylinderBetween, instances, merge, place } from '../geometry'
+import { block, composeMatrix, cylinderBetween, instances, merge, place, strut } from '../geometry'
 import { createGlowTexture } from '../textures'
 import type { FloorFactory, FrameState, Vec3 } from '../types'
-import { brassMaterial, chapterIndex, clamp01, disposeTree, floorBase, palette, smoothstep, towerSpec, withSurfaceBreakup } from './kit'
+import {
+  brassMaterial,
+  chapterIndex,
+  clamp01,
+  disposeTree,
+  floorBase,
+  glassMaterial,
+  palette,
+  smoothstep,
+  towerSpec,
+  withSurfaceBreakup,
+} from './kit'
 import { paintedSteelMaterial, withinChapters } from './kit-upper'
 
 const appCount = 20
@@ -41,8 +54,11 @@ const filamentRadius = 0.022
 const ringGlowWidth = 0.075
 const dimAfterTeaching = 0.78
 const revealLead = 0.7
+const ribbonSegments = 160
+const nosingSegments = 10
+const ledStripLength = 1.18
 
-const oakBreakup = { cellsPerMetre: 5, roughnessSwing: 0.12, albedoSwing: 0.12, verticalStretch: 1 }
+const oakBreakup = { cellsPerMetre: 5, roughnessSwing: 0.12, albedoSwing: 0.12, verticalStretch: 1 } as const
 
 function treadAngle(index: number): number {
   return (index / appCount) * spiralTurns * Math.PI * 2
@@ -85,34 +101,87 @@ function treadGeometry(): BufferGeometry {
 
 function frameGeometry(): BufferGeometry {
   const pieces: BufferGeometry[] = [
-    cylinderBetween([0, 0, 0], [0, storey + 0.1, 0], columnRadius, 20),
+    cylinderBetween([0, 0, 0], [0, storey + 0.13, 0], columnRadius, 24),
     place(new CylinderGeometry(0.32, 0.34, 0.025, 28), [0, 0.0125, 0]),
-    place(new CylinderGeometry(0.15, 0.13, 0.06, 20), [0, storey + 0.13, 0]),
   ]
-  const handrail: Vector3[] = []
-  const midrail: Vector3[] = []
   for (let index = 0; index < appCount; index += 1) {
     const top = treadTop(index)
     const angle = treadAngle(index)
-    pieces.push(place(new CylinderGeometry(0.15, 0.15, rise - 0.012, 20), [0, top - treadThickness - (rise - 0.012) / 2, 0]))
-    pieces.push(cylinderBetween(polar(angle, 0.14, top - treadThickness - 0.16), polar(angle, outerRadius - 0.25, top - treadThickness - 0.012), 0.02, 6))
-    pieces.push(cylinderBetween(outerPoint(index, top), outerPoint(index, top + railHeight - 0.02), 0.016, 8))
-    pieces.push(place(new CylinderGeometry(0.03, 0.03, 0.02, 12), outerPoint(index, top + 0.01)))
-    handrail.push(new Vector3(...outerPoint(index, top + railHeight)))
-    midrail.push(new Vector3(...outerPoint(index, top + railHeight * 0.5)))
+    pieces.push(place(new CylinderGeometry(0.148, 0.148, rise - 0.028, 20), [0, top - treadThickness - (rise - 0.028) / 2, 0]))
+    pieces.push(strut(polar(angle, 0.14, top - treadThickness - 0.11), polar(angle, outerRadius - 0.22, top - treadThickness - 0.008), 0.024))
+    pieces.push(strut(polar(angle, 0.14, top - treadThickness - 0.18), polar(angle, outerRadius * 0.58, top - treadThickness - 0.01), 0.016))
   }
-  pieces.push(new TubeGeometry(new CatmullRomCurve3(handrail), 180, 0.022, 8, false))
-  pieces.push(new TubeGeometry(new CatmullRomCurve3(midrail), 180, 0.01, 6, false))
   return merge(pieces)
 }
 
-function lampHolderGeometry(): BufferGeometry {
-  const pieces: BufferGeometry[] = []
+function brassGeometry(): BufferGeometry {
+  const pieces: BufferGeometry[] = [
+    place(new TorusGeometry(0.33, 0.012, 8, 28), [0, 0.025, 0], [Math.PI / 2, 0, 0]),
+    place(new CylinderGeometry(0.156, 0.156, 0.02, 20), [0, storey + 0.11, 0]),
+  ]
+  const halfArc = 0.162
   for (let index = 0; index < appCount; index += 1) {
-    const [x, y, z] = lightPosition(index)
-    pieces.push(place(new CylinderGeometry(0.024, 0.03, 0.035, 14), [x, y - globeRadius - 0.01, z]))
+    const top = treadTop(index)
+    const angle = treadAngle(index)
+    const [lx, ly, lz] = lightPosition(index)
+    pieces.push(place(new CylinderGeometry(0.024, 0.03, 0.035, 14), [lx, ly - globeRadius - 0.01, lz]))
+    pieces.push(place(new CylinderGeometry(0.156, 0.156, 0.02, 20), [0, top - treadThickness - 0.01, 0]))
+    for (let seg = 0; seg < nosingSegments; seg += 1) {
+      const a0 = angle - halfArc + (seg / nosingSegments) * halfArc * 2
+      const a1 = angle - halfArc + ((seg + 1) / nosingSegments) * halfArc * 2
+      const midAngle = (a0 + a1) / 2
+      const chordLength = (outerRadius + 0.003) * (a1 - a0) + 0.002
+      pieces.push(block([0.012, 0.032, chordLength], polar(midAngle, outerRadius + 0.003, top - treadThickness * 0.35), [0, midAngle, 0]))
+    }
+    if (index % 2 === 0) {
+      pieces.push(place(new CylinderGeometry(0.022, 0.022, 0.036, 12), polar(angle, outerRadius - 0.05, top + 0.06), [0, angle, Math.PI / 2]))
+    }
   }
+  const handrail: Vector3[] = []
+  const shoe: Vector3[] = []
+  for (let step = 0; step < 40; step += 1) {
+    const u = -0.25 + (step / 39) * (appCount + 0.2)
+    const baseHeight = rise * (u + 1)
+    handrail.push(new Vector3(...outerPoint(u, baseHeight + railHeight)))
+    shoe.push(new Vector3(...outerPoint(u, baseHeight + 0.018)))
+  }
+  pieces.push(new TubeGeometry(new CatmullRomCurve3(handrail), ribbonSegments, 0.024, 10, false))
+  pieces.push(new TubeGeometry(new CatmullRomCurve3(shoe), ribbonSegments, 0.015, 8, false))
   return merge(pieces)
+}
+
+function ribbonGeometry(): BufferGeometry {
+  const vertexCount = (ribbonSegments + 1) * 2
+  const positions = new Float32Array(vertexCount * 3)
+  const normals = new Float32Array(vertexCount * 3)
+  const uvs = new Float32Array(vertexCount * 2)
+  const indices: number[] = []
+  for (let step = 0; step <= ribbonSegments; step += 1) {
+    const t = step / ribbonSegments
+    const u = -0.25 + t * (appCount + 0.2)
+    const angle = treadAngle(u)
+    const baseHeight = rise * (u + 1)
+    const bottom = outerPoint(u, baseHeight + 0.022)
+    const top = outerPoint(u, baseHeight + railHeight - 0.018)
+    const nx = Math.cos(angle)
+    const nz = -Math.sin(angle)
+    const baseVertex = step * 2
+    positions.set(bottom, baseVertex * 3)
+    positions.set(top, (baseVertex + 1) * 3)
+    normals.set([nx, 0, nz], baseVertex * 3)
+    normals.set([nx, 0, nz], (baseVertex + 1) * 3)
+    uvs.set([t, 0], baseVertex * 2)
+    uvs.set([t, 1], (baseVertex + 1) * 2)
+    if (step < ribbonSegments) {
+      indices.push(baseVertex, baseVertex + 2, baseVertex + 1, baseVertex + 1, baseVertex + 2, baseVertex + 3)
+    }
+  }
+  const geometry = new BufferGeometry()
+  geometry.setAttribute('position', new Float32BufferAttribute(positions, 3))
+  geometry.setAttribute('normal', new Float32BufferAttribute(normals, 3))
+  geometry.setAttribute('uv', new Float32BufferAttribute(uvs, 2))
+  geometry.setIndex(indices)
+  return geometry
 }
 
 function ringGlowGeometry(): BufferGeometry {
@@ -135,13 +204,20 @@ export const createTeachingFloor: FloorFactory = () => {
 
   const frame = new Mesh(
     frameGeometry(),
-    paintedSteelMaterial({ paint: '#1F2A44', cellsPerMetre: 4, chipShare: 0.06, groundY: floorBase.teaching, grimeHeight: 0.25 }, { metalness: 0.3, roughness: 0.42 }),
+    paintedSteelMaterial(
+      { paint: '#2B2420', cellsPerMetre: 4, chipShare: 0.04, groundY: floorBase.teaching, grimeHeight: 0.2 },
+      { metalness: 0.62, roughness: 0.38 },
+    ),
   )
   frame.castShadow = true
   frame.receiveShadow = true
   const treads = new Mesh(treadGeometry(), withSurfaceBreakup(new MeshStandardMaterial({ color: '#7A5B3E', roughness: 0.55, metalness: 0 }), oakBreakup))
   treads.receiveShadow = true
-  const holders = new Mesh(lampHolderGeometry(), brassMaterial())
+  const brass = new Mesh(brassGeometry(), brassMaterial())
+  brass.castShadow = true
+  brass.receiveShadow = true
+  const glassRibbon = new Mesh(ribbonGeometry(), glassMaterial(0.16))
+  glassRibbon.renderOrder = 1
 
   const warm = new Color(palette.warm)
   const signal = new Color(palette.signal)
@@ -150,6 +226,12 @@ export const createTeachingFloor: FloorFactory = () => {
   const globeMaterial = new MeshBasicMaterial({ transparent: true, depthWrite: false, blending: AdditiveBlending })
   const globes = instances(new SphereGeometry(globeRadius, 20, 14), globeMaterial, lightMatrices, lightMatrices.map(() => warm))
   globes.renderOrder = 2
+
+  const treadLedMatrices = Array.from({ length: appCount }, (_, index) => {
+    const angle = treadAngle(index) + 0.09
+    return composeMatrix(polar(angle, 0.95, treadTop(index) - treadThickness - 0.004), [0, angle, 0])
+  })
+  const treadLeds = instances(new BoxGeometry(ledStripLength, 0.008, 0.014), new MeshBasicMaterial(), treadLedMatrices, treadLedMatrices.map(() => warm))
 
   const glow = createGlowTexture()
   const poolMaterial = new MeshBasicMaterial({ map: glow, transparent: true, depthWrite: false, blending: AdditiveBlending, polygonOffset: true, polygonOffsetFactor: -2 })
@@ -180,9 +262,9 @@ export const createTeachingFloor: FloorFactory = () => {
   )
   ringGlows.renderOrder = 1
 
-  root.add(frame, treads, holders, filaments, globes, pools, strips, ringGlows)
+  root.add(frame, treads, brass, glassRibbon, treadLeds, filaments, globes, pools, strips, ringGlows)
 
-  const closeDetails = [holders, filaments, pools]
+  const closeDetails = [filaments, pools, treadLeds]
   const scratch = new Color()
 
   function update(frame: FrameState): void {
@@ -196,13 +278,14 @@ export const createTeachingFloor: FloorFactory = () => {
       filaments.setColorAt(index, scratch.copy(warm).multiplyScalar(0.06 + on * 2.4))
       globes.setColorAt(index, scratch.copy(warm).multiplyScalar(0.05 + on * 0.55))
       pools.setColorAt(index, scratch.copy(warm).multiplyScalar(on * 0.16))
+      treadLeds.setColorAt(index, scratch.copy(warm).multiplyScalar(0.04 + on * 1.85))
     }
     moduleRadii.forEach((_, index) => {
       const on = clamp01((reveal - index / moduleRadii.length) * moduleRadii.length) * (0.4 + 0.6 * standby)
       strips.setColorAt(index, scratch.copy(signal).multiplyScalar(0.05 + on * 1.4))
       ringGlows.setColorAt(index, scratch.copy(signal).multiplyScalar(on * 0.32))
     })
-    for (const mesh of [filaments, globes, pools, strips, ringGlows]) {
+    for (const mesh of [filaments, globes, pools, treadLeds, strips, ringGlows]) {
       if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true
     }
   }
